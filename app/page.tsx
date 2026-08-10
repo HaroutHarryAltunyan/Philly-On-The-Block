@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Category = "Cheesesteaks" | "Chicken" | "Sides" | "Drinks";
 
@@ -101,6 +101,68 @@ const extras = [
 
 const money = (value: number) => `$${value.toFixed(2)}`;
 
+const weeklyHours = [
+  ["Monday", "Closed"],
+  ["Tuesday", "12–9 PM"],
+  ["Wednesday", "12–9 PM"],
+  ["Thursday", "12–9 PM"],
+  ["Friday", "12–9 PM"],
+  ["Saturday", "4–11 PM"],
+  ["Sunday", "4–11 PM"],
+];
+
+const hoursByDay: Record<string, [number, number] | null> = {
+  Monday: null,
+  Tuesday: [12 * 60, 21 * 60],
+  Wednesday: [12 * 60, 21 * 60],
+  Thursday: [12 * 60, 21 * 60],
+  Friday: [12 * 60, 21 * 60],
+  Saturday: [16 * 60, 23 * 60],
+  Sunday: [16 * 60, 23 * 60],
+};
+
+function getBusinessStatus() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "long",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
+  const day = value("weekday") ?? "Monday";
+  const schedule = hoursByDay[day];
+
+  if (!schedule) return { open: false, label: "Closed today" };
+
+  const minutes = Number(value("hour")) * 60 + Number(value("minute"));
+  const [opens, closes] = schedule;
+  if (minutes >= opens && minutes < closes) {
+    return { open: true, label: `Open now · until ${closes === 23 * 60 ? "11 PM" : "9 PM"}` };
+  }
+
+  return {
+    open: false,
+    label: minutes < opens ? `Opens today · ${opens === 16 * 60 ? "4 PM" : "12 PM"}` : "Closed for today",
+  };
+}
+
+const restaurantSchema = {
+  "@context": "https://schema.org",
+  "@type": "Restaurant",
+  name: "Philly on the Block",
+  telephone: "+1-818-406-6053",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "2600 W Victory Blvd",
+    addressLocality: "Burbank",
+    addressRegion: "CA",
+    postalCode: "91505",
+    addressCountry: "US",
+  },
+  openingHours: ["Tu-Fr 12:00-21:00", "Sa-Su 16:00-23:00"],
+};
+
 export default function Home() {
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [fulfillment, setFulfillment] = useState<"Pickup" | "Delivery">("Pickup");
@@ -110,6 +172,14 @@ export default function Home() {
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "checkout" | "success">("cart");
+  const [businessStatus, setBusinessStatus] = useState({ open: false, label: "View today’s hours" });
+
+  useEffect(() => {
+    const refreshStatus = () => setBusinessStatus(getBusinessStatus());
+    refreshStatus();
+    const timer = window.setInterval(refreshStatus, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const visibleItems = useMemo(
     () => (category === "All" ? menuItems : menuItems.filter((item) => item.category === category)),
@@ -170,6 +240,7 @@ export default function Home() {
 
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantSchema) }} />
       <a className="skip-link" href="#menu">
         Skip to menu
       </a>
@@ -186,7 +257,9 @@ export default function Home() {
         </nav>
 
         <div className="header-actions">
-          <span className="open-status"><i /> Open today · until 11</span>
+          <a className={`open-status ${businessStatus.open ? "" : "closed"}`} href="#visit">
+            <i /> {businessStatus.label}
+          </a>
           <button className="cart-button" type="button" onClick={() => setCartOpen(true)}>
             Bag <span>{itemCount}</span>
           </button>
@@ -195,7 +268,7 @@ export default function Home() {
 
       <section className="hero" id="top">
         <div className="hero-copy">
-          <div className="eyebrow"><span>Since right now</span> Philly, PA</div>
+          <div className="eyebrow"><span>Built for the block</span> Burbank, CA</div>
           <h1>
             Built on
             <span>the block.</span>
@@ -212,7 +285,7 @@ export default function Home() {
             <div className="avatar-stack" aria-hidden="true">
               <span>J</span><span>M</span><span>K</span>
             </div>
-            <div><strong>4.9 neighborhood rating</strong><small>Based on 800+ happy regulars</small></div>
+            <div><strong>Burbank’s cheesesteak stop</strong><small>Pickup · delivery · late weekends</small></div>
           </div>
         </div>
 
@@ -419,22 +492,30 @@ export default function Home() {
         <div className="visit-card">
           <span className="kicker">Find the block</span>
           <h2>Pull up hungry.</h2>
-          <p>Philadelphia, Pennsylvania<br />Full address announced soon.</p>
+          <address>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=2600+W+Victory+Blvd%2C+Burbank%2C+CA+91505" target="_blank" rel="noreferrer">
+              2600 W Victory Blvd<br />Burbank, CA 91505
+            </a>
+            <a className="visit-phone" href="tel:+18184066053">(818) 406-6053</a>
+          </address>
           <div className="hours">
-            <div><span>Mon–Thu</span><strong>11am–10pm</strong></div>
-            <div><span>Fri–Sat</span><strong>11am–11pm</strong></div>
-            <div><span>Sunday</span><strong>12pm–9pm</strong></div>
+            {weeklyHours.map(([day, hours]) => (
+              <div key={day}><span>{day}</span><strong>{hours}</strong></div>
+            ))}
           </div>
-          <a className="button button-light" href="mailto:hello@phillyontheblock.com">Talk to us <span>↗</span></a>
+          <div className="visit-actions">
+            <a className="button button-light" href="https://www.google.com/maps/dir/?api=1&destination=2600+W+Victory+Blvd%2C+Burbank%2C+CA+91505" target="_blank" rel="noreferrer">Get directions <span>↗</span></a>
+            <a className="visit-call" href="tel:+18184066053">Call the block <span>→</span></a>
+          </div>
         </div>
         <div className="map-card" aria-hidden="true">
           <img className="visit-lamp" src="/images/otb-lamp-post.png" alt="" />
           <img className="visit-truck" src="/images/otb-food-truck.png" alt="" />
-          <span className="map-road road-one">Frankford Ave</span>
-          <span className="map-road road-two">Girard Ave</span>
-          <span className="map-road road-three">Front St</span>
+          <span className="map-road road-one">W Victory Blvd</span>
+          <span className="map-road road-two">Burbank, CA</span>
+          <span className="map-road road-three">91505</span>
           <div className="map-pin"><span>P/B</span></div>
-          <strong>Right here,<br />very soon.</strong>
+          <strong>2600 W<br />Victory Blvd.</strong>
         </div>
       </section>
 
@@ -443,8 +524,8 @@ export default function Home() {
           <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
         </a>
         <p>Real steak. Real rolls. Real Philly energy.</p>
-        <div className="footer-links"><a href="#menu">Menu</a><a href="#visit">Hours</a><a href="mailto:hello@phillyontheblock.com">Contact</a></div>
-        <small>© 2026 Philly on the Block · Restaurant concept preview</small>
+        <div className="footer-links"><a href="#menu">Menu</a><a href="#visit">Hours</a><a href="tel:+18184066053">Call</a></div>
+        <small>© 2026 Philly on the Block · 2600 W Victory Blvd, Burbank, CA</small>
       </footer>
 
       {selectedItem && (
