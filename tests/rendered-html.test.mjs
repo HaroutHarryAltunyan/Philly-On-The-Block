@@ -48,21 +48,32 @@ test("server-renders the current Philly on the Block menu", async () => {
   assert.match(html, /2600 W Victory Blvd/);
   assert.match(html, /\(818\) 406-6053/);
   assert.match(html, /https:\/\/www\.yelp\.com\/menu\/philly-on-the-block-burbank/);
+  assert.match(html, /\/images\/menu\/philly-otb\.jpg/);
+  assert.match(html, /\/images\/menu\/classic-philly\.jpg/);
+  assert.match(html, /\/images\/menu\/philly-melt\.jpg/);
+  assert.match(html, /\/images\/menu\/otb-fries\.jpg/);
   assert.doesNotMatch(html, /The Blockbuster|Broad Street Heat|Philly Water Ice/);
 });
 
 test("keeps the menu source, baby-blue palette, and hosting identity in place", async () => {
-  const [page, css, layout, hosting] = await Promise.all([
+  const [page, css, layout, hosting, menuPhotos] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    Promise.all([
+      "philly-otb.jpg",
+      "classic-philly.jpg",
+      "philly-melt.jpg",
+      "otb-fries.jpg",
+    ].map((name) => readFile(new URL(`../public/images/menu/${name}`, import.meta.url)))),
   ]);
 
   assert.match(page, /type Category = "Cheesesteaks" \| "Sides" \| "Drinks"/);
   assert.match(page, /OTB Ranch/);
   assert.match(page, /OTB Tang/);
   assert.match(css, /#badaff/i);
+  assert.ok(menuPhotos.every((photo) => photo.length > 80_000));
   assert.match(layout, /Philly on the Block \| Cheesesteaks with attitude/);
   assert.equal(
     JSON.parse(hosting).project_id,

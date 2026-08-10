@@ -13,6 +13,8 @@ type MenuItem = {
   badge?: string;
   art: string;
   image: string;
+  photo?: boolean;
+  imagePosition?: string;
 };
 
 type CartLine = {
@@ -32,7 +34,9 @@ const menuItems: MenuItem[] = [
     price: 21.99,
     badge: "House favorite",
     art: "philly-otb",
-    image: "/images/otb-mascot-right.png",
+    image: "/images/menu/philly-otb.jpg",
+    photo: true,
+    imagePosition: "50% 15%",
   },
   {
     id: 2,
@@ -41,7 +45,9 @@ const menuItems: MenuItem[] = [
     description: "Premium meat topped with grilled onions and sharp white American.",
     price: 21.99,
     art: "classic-philly",
-    image: "/images/otb-mascot-left.png",
+    image: "/images/menu/classic-philly.jpg",
+    photo: true,
+    imagePosition: "50% 56%",
   },
   {
     id: 3,
@@ -50,7 +56,9 @@ const menuItems: MenuItem[] = [
     description: "Choice of meat, grilled onions, and sharp white American in Texas toast.",
     price: 15.99,
     art: "philly-melt",
-    image: "/images/otb-food-truck.png",
+    image: "/images/menu/philly-melt.jpg",
+    photo: true,
+    imagePosition: "50% 52%",
   },
   {
     id: 4,
@@ -59,7 +67,9 @@ const menuItems: MenuItem[] = [
     description: "Shoestring fries topped with house seasoning.",
     price: 5.5,
     art: "fries",
-    image: "/images/otb-crosswalk.png",
+    image: "/images/menu/philly-otb.jpg",
+    photo: true,
+    imagePosition: "50% 78%",
   },
   {
     id: 5,
@@ -69,7 +79,9 @@ const menuItems: MenuItem[] = [
     price: 20.99,
     badge: "Loaded",
     art: "otb-fries",
-    image: "/images/otb-street-sign.png",
+    image: "/images/menu/otb-fries.jpg",
+    photo: true,
+    imagePosition: "50% 52%",
   },
   {
     id: 6,
@@ -365,12 +377,17 @@ export default function Home() {
               <article className="menu-card" key={item.id}>
                 <button
                   type="button"
-                  className={`menu-art ${item.art}`}
+                  className={`menu-art ${item.art}${item.photo ? " has-photo" : ""}`}
                   onClick={() => openItem(item)}
                   aria-label={`View ${item.name}`}
                 >
                   <span className="menu-number">0{index + 1}</span>
-                  <img className="menu-illustration" src={item.image} alt="" />
+                  <img
+                    className={`menu-illustration${item.photo ? " menu-photo" : ""}`}
+                    src={item.image}
+                    alt={item.photo ? `${item.name} from the Philly on the Block menu` : ""}
+                    style={item.imagePosition ? { objectPosition: item.imagePosition } : undefined}
+                  />
                   {item.badge && <span className="menu-badge">{item.badge}</span>}
                 </button>
                 <div className="menu-info">
