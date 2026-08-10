@@ -1,6 +1,6 @@
 # Philly on the Block
 
-A bold, responsive restaurant ordering experience for Philly on the Block.
+A bold, responsive restaurant ordering experience for Philly on the Block, built around the official street-sign, mascot, food-truck, and neighborhood artwork.
 
 The first release includes menu filtering, pickup and delivery selection, item customization, a working cart, demo checkout, brand story, hours, and location content.
 

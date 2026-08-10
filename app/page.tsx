@@ -13,6 +13,7 @@ type MenuItem = {
   badge?: string;
   heat?: string;
   art: string;
+  image: string;
 };
 
 type CartLine = {
@@ -32,6 +33,7 @@ const menuItems: MenuItem[] = [
     price: 14.5,
     badge: "House favorite",
     art: "blockbuster",
+    image: "/images/otb-mascot-right.png",
   },
   {
     id: 2,
@@ -41,6 +43,7 @@ const menuItems: MenuItem[] = [
     price: 15.5,
     heat: "Hot",
     art: "broad-street",
+    image: "/images/otb-mascot-left.png",
   },
   {
     id: 3,
@@ -49,6 +52,7 @@ const menuItems: MenuItem[] = [
     description: "Chopped chicken, American cheese, roasted peppers, onions, comeback sauce.",
     price: 13.5,
     art: "southside",
+    image: "/images/otb-food-truck.png",
   },
   {
     id: 4,
@@ -58,6 +62,7 @@ const menuItems: MenuItem[] = [
     price: 15,
     badge: "New",
     art: "mushroom",
+    image: "/images/otb-street-sign.png",
   },
   {
     id: 5,
@@ -67,6 +72,7 @@ const menuItems: MenuItem[] = [
     price: 8.5,
     badge: "Share it. Or don’t.",
     art: "fries",
+    image: "/images/otb-crosswalk.png",
   },
   {
     id: 6,
@@ -75,6 +81,7 @@ const menuItems: MenuItem[] = [
     description: "Lemon or cherry. Cold, bright, and made for a hot griddle day.",
     price: 4,
     art: "water-ice",
+    image: "/images/otb-lamp-post.png",
   },
 ];
 
@@ -169,11 +176,7 @@ export default function Home() {
 
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Philly on the Block home">
-          <span className="brand-mark">P/B</span>
-          <span className="brand-words">
-            Philly on
-            <strong>the Block</strong>
-          </span>
+          <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
         </a>
 
         <nav className="desktop-nav" aria-label="Main navigation">
@@ -213,8 +216,11 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="hero-visual" aria-label="Fresh cheesesteak with fries">
-          <img src="/images/philly-hero.png" alt="Cheesesteak with melted provolone, onions, and crinkle fries" />
+        <div className="hero-visual" aria-label="Philly on the Block neighborhood illustration">
+          <img className="scene-crosswalk" src="/images/otb-crosswalk.png" alt="" />
+          <img className="scene-truck" src="/images/otb-food-truck.png" alt="Philly on the Block food truck" />
+          <img className="scene-mascot" src="/images/otb-mascot-right.png" alt="Philly on the Block sandwich maker holding a cheesesteak" />
+          <img className="scene-sign" src="/images/otb-street-sign.png" alt="Philly on the Block at Philly 8th Street" />
           <div className="hero-stamp" aria-hidden="true">
             <span>Chopped fresh</span>
             <strong>HOT</strong>
@@ -285,7 +291,7 @@ export default function Home() {
                   aria-label={`Customize ${item.name}`}
                 >
                   <span className="menu-number">0{index + 1}</span>
-                  <span className="menu-letter" aria-hidden="true">{item.name.charAt(0)}</span>
+                  <img className="menu-illustration" src={item.image} alt="" />
                   {item.badge && <span className="menu-badge">{item.badge}</span>}
                 </button>
                 <div className="menu-info">
@@ -422,6 +428,8 @@ export default function Home() {
           <a className="button button-light" href="mailto:hello@phillyontheblock.com">Talk to us <span>↗</span></a>
         </div>
         <div className="map-card" aria-hidden="true">
+          <img className="visit-lamp" src="/images/otb-lamp-post.png" alt="" />
+          <img className="visit-truck" src="/images/otb-food-truck.png" alt="" />
           <span className="map-road road-one">Frankford Ave</span>
           <span className="map-road road-two">Girard Ave</span>
           <span className="map-road road-three">Front St</span>
@@ -432,8 +440,7 @@ export default function Home() {
 
       <footer>
         <a className="brand footer-brand" href="#top">
-          <span className="brand-mark">P/B</span>
-          <span className="brand-words">Philly on<strong>the Block</strong></span>
+          <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
         </a>
         <p>Real steak. Real rolls. Real Philly energy.</p>
         <div className="footer-links"><a href="#menu">Menu</a><a href="#visit">Hours</a><a href="mailto:hello@phillyontheblock.com">Contact</a></div>
