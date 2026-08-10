@@ -4,7 +4,7 @@ import "./globals.css";
 
 const title = "Philly on the Block | Cheesesteaks with attitude";
 const description =
-  "Philly-born cheesesteaks, chopped fresh and built to order at 2600 W Victory Blvd in Burbank, California.";
+  "Cheesesteaks, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd in Burbank, California.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -20,14 +20,14 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     openGraph: {
       title: "Philly on the Block",
-      description: "Big flavor. No shortcuts. Cheesesteaks built on the block in Burbank, California.",
+      description: "Cheesesteaks, loaded OTB Fries, and cold Cokes in Burbank, California.",
       type: "website",
       images: [{ url: socialImage, width: 1733, height: 909, alt: "Philly on the Block in Burbank" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "Philly on the Block",
-      description: "Cheesesteaks built on the block in Burbank, California.",
+      description: "Cheesesteaks, loaded OTB Fries, and cold Cokes in Burbank, California.",
       images: [socialImage],
     },
   };

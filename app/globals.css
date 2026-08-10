@@ -505,6 +505,13 @@ a {
   line-height: 1.6;
 }
 
+.section-heading > p a {
+  color: var(--hot);
+  font-weight: 900;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .order-toolbar {
   max-width: 1440px;
   margin: 0 auto 28px;
@@ -603,12 +610,14 @@ a {
 
 .menu-art::before { width: 220px; height: 220px; right: -35px; top: -85px; }
 .menu-art::after { width: 120px; height: 120px; left: 14%; bottom: -70px; }
-.menu-art.blockbuster { background: #badaff; }
-.menu-art.broad-street { background: var(--mustard); }
-.menu-art.southside { background: #a1ccff; }
-.menu-art.mushroom { background: #fff7e2; }
+.menu-art.philly-otb { background: #badaff; }
+.menu-art.classic-philly { background: var(--mustard); }
+.menu-art.philly-melt { background: #a1ccff; }
 .menu-art.fries { background: #e4a852; }
-.menu-art.water-ice { background: #d7f0ff; }
+.menu-art.otb-fries { background: #fff7e2; }
+.menu-art.coke-can { background: #ef5947; }
+.menu-art.diet-coke { background: #d7f0ff; }
+.menu-art.bottled-coke { background: #badaff; }
 
 .menu-illustration {
   position: absolute;
@@ -956,12 +965,8 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
 .customizer .cart-kicker { color: var(--hot); }
 .customizer h2 { margin: 8px 0; padding-right: 34px; font-family: Impact, sans-serif; font-size: clamp(2.4rem, 8vw, 4rem); line-height: .95; text-transform: uppercase; }
 .customizer > p { margin: 0 0 25px; color: rgba(24,23,19,.6); font-size: 13px; line-height: 1.55; }
-.customizer fieldset { margin: 0 0 24px; padding: 0; border: 0; }
-.customizer legend { width: 100%; display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-.customizer legend small { color: var(--hot); }
-.option-row { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 13px; cursor: pointer; }
-.option-row input { width: 16px; height: 16px; accent-color: var(--hot); }
-.option-row b { font-size: 10px; }
+.menu-source-note { display: flex; align-items: center; justify-content: space-between; margin: 0 0 24px; padding: 16px 0; border-block: 2px solid var(--ink); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.menu-source-note strong { color: var(--hot); font-size: 18px; }
 .modal-add { width: 100%; }
 
 .cart-backdrop { display: none; }

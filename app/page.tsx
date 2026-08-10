@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type Category = "Cheesesteaks" | "Chicken" | "Sides" | "Drinks";
+type Category = "Cheesesteaks" | "Sides" | "Drinks";
 
 type MenuItem = {
   id: number;
@@ -11,7 +11,6 @@ type MenuItem = {
   description: string;
   price: number;
   badge?: string;
-  heat?: string;
   art: string;
   image: string;
 };
@@ -27,76 +26,85 @@ type CartLine = {
 const menuItems: MenuItem[] = [
   {
     id: 1,
-    name: "The Blockbuster",
+    name: "Philly OTB",
     category: "Cheesesteaks",
-    description: "Shaved ribeye, Cooper Sharp, caramelized onions, house long roll.",
-    price: 14.5,
+    description: "Freshly baked bread, premium meat, grilled onions, spicy pepper, sharp white American, OTB Ranch, and OTB Tang.",
+    price: 21.99,
     badge: "House favorite",
-    art: "blockbuster",
+    art: "philly-otb",
     image: "/images/otb-mascot-right.png",
   },
   {
     id: 2,
-    name: "Broad Street Heat",
+    name: "Classic Philly",
     category: "Cheesesteaks",
-    description: "Ribeye, sharp provolone, long hots, fried onions, cherry pepper relish.",
-    price: 15.5,
-    heat: "Hot",
-    art: "broad-street",
+    description: "Premium meat topped with grilled onions and sharp white American.",
+    price: 21.99,
+    art: "classic-philly",
     image: "/images/otb-mascot-left.png",
   },
   {
     id: 3,
-    name: "Southside Chicken",
-    category: "Chicken",
-    description: "Chopped chicken, American cheese, roasted peppers, onions, comeback sauce.",
-    price: 13.5,
-    art: "southside",
+    name: "Philly Melt",
+    category: "Cheesesteaks",
+    description: "Choice of meat, grilled onions, and sharp white American in Texas toast.",
+    price: 15.99,
+    art: "philly-melt",
     image: "/images/otb-food-truck.png",
   },
   {
     id: 4,
-    name: "Mushroom Row",
-    category: "Cheesesteaks",
-    description: "Ribeye, provolone, griddled mushrooms, black pepper, garlic jus.",
-    price: 15,
-    badge: "New",
-    art: "mushroom",
-    image: "/images/otb-street-sign.png",
-  },
-  {
-    id: 5,
-    name: "Loaded Block Fries",
+    name: "Fries",
     category: "Sides",
-    description: "Crinkle fries, chopped steak, cheese sauce, fried onions, house peppers.",
-    price: 8.5,
-    badge: "Share it. Or don’t.",
+    description: "Shoestring fries topped with house seasoning.",
+    price: 5.5,
     art: "fries",
     image: "/images/otb-crosswalk.png",
   },
   {
+    id: 5,
+    name: "OTB Fries",
+    category: "Sides",
+    description: "Shoestring fries, steak, grilled onions, sharp white American, OTB Ranch, and OTB Tang.",
+    price: 20.99,
+    badge: "Loaded",
+    art: "otb-fries",
+    image: "/images/otb-street-sign.png",
+  },
+  {
     id: 6,
-    name: "Philly Water Ice",
+    name: "Coke Can",
     category: "Drinks",
-    description: "Lemon or cherry. Cold, bright, and made for a hot griddle day.",
-    price: 4,
-    art: "water-ice",
+    description: "The cold, refreshing, sparkling classic that America loves.",
+    price: 2.75,
+    art: "coke-can",
     image: "/images/otb-lamp-post.png",
+  },
+  {
+    id: 7,
+    name: "Diet Coke Can",
+    category: "Drinks",
+    description: "A crisp, refreshing taste you know and love with zero calories.",
+    price: 2.75,
+    art: "diet-coke",
+    image: "/images/otb-food-truck.png",
+  },
+  {
+    id: 8,
+    name: "Bottled Coke",
+    category: "Drinks",
+    description: "The cold, refreshing, sparkling classic that America loves.",
+    price: 5,
+    art: "bottled-coke",
+    image: "/images/otb-logo-sign.png",
   },
 ];
 
 const categories: Array<"All" | Category> = [
   "All",
   "Cheesesteaks",
-  "Chicken",
   "Sides",
   "Drinks",
-];
-
-const extras = [
-  { name: "Extra meat", price: 4 },
-  { name: "Long hots", price: 1.25 },
-  { name: "Mushrooms", price: 1.25 },
 ];
 
 const money = (value: number) => `$${value.toFixed(2)}`;
@@ -168,8 +176,6 @@ export default function Home() {
   const [fulfillment, setFulfillment] = useState<"Pickup" | "Delivery">("Pickup");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const [selectedCheese, setSelectedCheese] = useState("Cooper Sharp");
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "checkout" | "success">("cart");
   const [businessStatus, setBusinessStatus] = useState({ open: false, label: "View today’s hours" });
@@ -195,10 +201,8 @@ export default function Home() {
   const tax = subtotal * 0.08;
   const total = subtotal + serviceFee + tax;
 
-  function openCustomizer(item: MenuItem) {
+  function openItem(item: MenuItem) {
     setSelectedItem(item);
-    setSelectedCheese(item.category === "Drinks" || item.category === "Sides" ? "No cheese" : "Cooper Sharp");
-    setSelectedExtras([]);
   }
 
   function addToCart(item: MenuItem, options: string[] = [], optionPrice = 0) {
@@ -274,8 +278,8 @@ export default function Home() {
             <span>the block.</span>
           </h1>
           <p>
-            Big flavor, no shortcuts. Ribeye chopped to order, rolls with the right pull,
-            and just enough attitude.
+            Premium meat, freshly baked bread, grilled onions, sharp white American,
+            and the house sauces that make it OTB.
           </p>
           <div className="hero-actions">
             <a className="button button-primary" href="#menu">Order on the block <b>↘</b></a>
@@ -283,7 +287,7 @@ export default function Home() {
           </div>
           <div className="hero-proof">
             <div className="avatar-stack" aria-hidden="true">
-              <span>J</span><span>M</span><span>K</span>
+              <span>P</span><span>O</span><span>B</span>
             </div>
             <div><strong>Burbank’s cheesesteak stop</strong><small>Pickup · delivery · late weekends</small></div>
           </div>
@@ -301,17 +305,17 @@ export default function Home() {
           </div>
           <div className="hero-ticket">
             <span>Today’s move</span>
-            <strong>The Blockbuster</strong>
-            <small>Cooper Sharp · fried onions · $14.50</small>
+            <strong>Philly OTB</strong>
+            <small>Sharp white American · OTB Ranch + Tang · $21.99</small>
           </div>
         </div>
       </section>
 
       <div className="ticker" aria-hidden="true">
         <div>
-          <span>Chopped to order</span><b>✦</b><span>Never phoned in</span><b>✦</b>
-          <span>Philly born &amp; bread</span><b>✦</b><span>Chopped to order</span><b>✦</b>
-          <span>Never phoned in</span><b>✦</b><span>Philly born &amp; bread</span>
+          <span>Freshly baked bread</span><b>✦</b><span>OTB Ranch + Tang</span><b>✦</b>
+          <span>House favorite: Philly OTB</span><b>✦</b><span>Freshly baked bread</span><b>✦</b>
+          <span>OTB Ranch + Tang</span><b>✦</b><span>House favorite: Philly OTB</span>
         </div>
       </div>
 
@@ -321,7 +325,9 @@ export default function Home() {
             <span className="kicker">The main event</span>
             <h2>Choose your damage.</h2>
           </div>
-          <p>Everything hits the griddle when you order. No heat lamps. No sad sandwiches.</p>
+          <p>
+            Current menu and prices from Philly on the Block. <a href="https://www.yelp.com/menu/philly-on-the-block-burbank" target="_blank" rel="noreferrer">View the Yelp menu ↗</a>
+          </p>
         </div>
 
         <div className="order-toolbar">
@@ -360,8 +366,8 @@ export default function Home() {
                 <button
                   type="button"
                   className={`menu-art ${item.art}`}
-                  onClick={() => openCustomizer(item)}
-                  aria-label={`Customize ${item.name}`}
+                  onClick={() => openItem(item)}
+                  aria-label={`View ${item.name}`}
                 >
                   <span className="menu-number">0{index + 1}</span>
                   <img className="menu-illustration" src={item.image} alt="" />
@@ -370,14 +376,14 @@ export default function Home() {
                 <div className="menu-info">
                   <div className="menu-title-row">
                     <div>
-                      <span className="menu-category">{item.category}{item.heat ? ` · ${item.heat}` : ""}</span>
+                      <span className="menu-category">{item.category}</span>
                       <h3>{item.name}</h3>
                     </div>
                     <strong>{money(item.price)}</strong>
                   </div>
                   <p>{item.description}</p>
-                  <button type="button" className="add-button" onClick={() => openCustomizer(item)}>
-                    Customize <span>+</span>
+                  <button type="button" className="add-button" onClick={() => openItem(item)}>
+                    Add to bag <span>+</span>
                   </button>
                 </div>
               </article>
@@ -477,14 +483,15 @@ export default function Home() {
         <div className="story-copy">
           <p className="story-lead">No shortcuts.<br />No soft opinions.</p>
           <p className="story-body">
-            Philly on the Block is our love letter to the corner shops that feed a city.
-            Good beef, honest rolls, a screaming-hot griddle, and people who remember your order.
+            Philly on the Block keeps the menu focused: cheesesteaks, seasoned fries, and cold Cokes.
+            Freshly baked bread, premium meat, grilled onions, sharp white American, OTB Ranch,
+            and OTB Tang do the heavy lifting.
           </p>
         </div>
         <div className="story-principles">
-          <article><span>01</span><h3>Chopped fresh</h3><p>Every steak meets the griddle after you order it.</p></article>
-          <article><span>02</span><h3>Built right</h3><p>Balance in every bite, from first crunch to last drip.</p></article>
-          <article><span>03</span><h3>Block energy</h3><p>Fast, loud, welcoming, and always worth the walk.</p></article>
+          <article><span>01</span><h3>The house build</h3><p>Spicy pepper, sharp white American, OTB Ranch, and OTB Tang.</p></article>
+          <article><span>02</span><h3>The classic</h3><p>Premium meat, grilled onions, and sharp white American. That’s it.</p></article>
+          <article><span>03</span><h3>The loaded side</h3><p>OTB Fries bring the steak, onions, cheese, and both house sauces.</p></article>
         </div>
       </section>
 
@@ -523,70 +530,40 @@ export default function Home() {
         <a className="brand footer-brand" href="#top">
           <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
         </a>
-        <p>Real steak. Real rolls. Real Philly energy.</p>
+        <p>Fresh bread. Big flavor. Block energy.</p>
         <div className="footer-links"><a href="#menu">Menu</a><a href="#visit">Hours</a><a href="tel:+18184066053">Call</a></div>
         <small>© 2026 Philly on the Block · 2600 W Victory Blvd, Burbank, CA</small>
       </footer>
 
       {selectedItem && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelectedItem(null)}>
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedItem(null);
+          }}
+        >
           <section
             className="customizer"
             role="dialog"
             aria-modal="true"
             aria-labelledby="customizer-title"
-            onMouseDown={(event) => event.stopPropagation()}
           >
             <button className="modal-close" type="button" onClick={() => setSelectedItem(null)} aria-label="Close customizer">×</button>
-            <span className="cart-kicker">Make it yours</span>
+            <span className="cart-kicker">From the menu</span>
             <h2 id="customizer-title">{selectedItem.name}</h2>
             <p>{selectedItem.description}</p>
-
-            {selectedItem.category !== "Drinks" && selectedItem.category !== "Sides" && (
-              <fieldset>
-                <legend><span>Choose your cheese</span><small>Required</small></legend>
-                {["Cooper Sharp", "Provolone", "Cheese Whiz", "No cheese"].map((cheese) => (
-                  <label className="option-row" key={cheese}>
-                    <input
-                      type="radio"
-                      name="cheese"
-                      value={cheese}
-                      checked={selectedCheese === cheese}
-                      onChange={() => setSelectedCheese(cheese)}
-                    />
-                    <span>{cheese}</span><b>Included</b>
-                  </label>
-                ))}
-              </fieldset>
-            )}
-
-            <fieldset>
-              <legend><span>Add something extra</span><small>Optional</small></legend>
-              {extras.map((extra) => (
-                <label className="option-row" key={extra.name}>
-                  <input
-                    type="checkbox"
-                    checked={selectedExtras.includes(extra.name)}
-                    onChange={() => setSelectedExtras((current) => current.includes(extra.name) ? current.filter((item) => item !== extra.name) : [...current, extra.name])}
-                  />
-                  <span>{extra.name}</span><b>+{money(extra.price)}</b>
-                </label>
-              ))}
-            </fieldset>
+            <div className="menu-source-note">
+              <span>Menu price</span>
+              <strong>{money(selectedItem.price)}</strong>
+            </div>
 
             <button
               className="button button-primary modal-add"
               type="button"
-              onClick={() => {
-                const chosenOptions = [
-                  ...(selectedItem.category !== "Drinks" && selectedItem.category !== "Sides" ? [selectedCheese] : []),
-                  ...selectedExtras,
-                ];
-                const extraPrice = extras.filter((extra) => selectedExtras.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0);
-                addToCart(selectedItem, chosenOptions, extraPrice);
-              }}
+              onClick={() => addToCart(selectedItem)}
             >
-              Add to bag · {money(selectedItem.price + extras.filter((extra) => selectedExtras.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0))}
+              Add to bag · {money(selectedItem.price)}
             </button>
           </section>
         </div>
