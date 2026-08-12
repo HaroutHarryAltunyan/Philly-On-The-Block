@@ -106,6 +106,18 @@ export default function OrdersPage() {
       .catch(() => {});
   }, []);
 
+  async function openAssign(order: Order) {
+    setSelected(order);
+    setAssigningTo(order.id);
+    setAssignDriverId(null);
+    try {
+      const data = await api<{ drivers: Driver[] }>("/api/admin/drivers");
+      setDrivers(data.drivers);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load drivers");
+    }
+  }
+
   async function assignDriver(order: Order) {
     if (!assignDriverId) return;
     setBusy(order.id);
@@ -270,7 +282,14 @@ export default function OrdersPage() {
                         <div style={{ fontSize: "0.78rem", color: "#5c6b7a" }}>{order.address}</div>
                       )}
                     </td>
-                    <td>{order.fulfillment === "delivery" ? "Delivery" : "Pickup"}</td>
+                    <td>
+                      {order.fulfillment === "delivery" ? "Delivery" : "Pickup"}
+                      {order.fulfillment === "delivery" && order.driverId && (
+                        <div style={{ fontSize: "0.78rem", color: "#2e7d32", fontWeight: 700 }}>
+                          🛵 {drivers.find((d) => d.id === order.driverId)?.name || `Driver #${order.driverId}`}
+                        </div>
+                      )}
+                    </td>
                     <td className="order-lines">
                       {order.items.map((line, index) => (
                         <div key={index}>
@@ -304,6 +323,11 @@ export default function OrdersPage() {
                     <td><span className={`status-chip status-${order.status}`}>{ORDER_STATUS_LABELS[order.status]}</span></td>
                     <td onClick={(event) => event.stopPropagation()}>
                       <div className="status-actions">
+                        {order.fulfillment === "delivery" && !order.driverId && order.status !== "completed" && order.status !== "cancelled" && (
+                          <button type="button" disabled={busy === order.id} onClick={() => openAssign(order)}>
+                            Assign driver
+                          </button>
+                        )}
                         {order.fulfillment === "delivery" && order.status === "ready" && (
                           <button type="button" disabled={busy === order.id} onClick={() => startDelivery(order)}>
                             Start delivery
@@ -439,25 +463,33 @@ export default function OrdersPage() {
                           </span>
                         ) : (
                           assigningTo === selected.id ? (
-                            <span style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-                              <select
-                                value={assignDriverId ?? ""}
-                                onChange={(e) => setAssignDriverId(e.target.value ? parseInt(e.target.value) : null)}
-                                style={{ border: "1px solid #e3e9f0", borderRadius: 4, padding: "0.3rem 0.4rem", fontFamily: "inherit" }}
-                              >
-                                <option value="">Select driver…</option>
-                                {drivers.filter((d) => d.status === "active").map((d) => (
-                                  <option key={d.id} value={d.id}>{d.name} ({d.phone})</option>
-                                ))}
-                              </select>
-                              <button
-                                type="button"
-                                onClick={() => assignDriver(selected)}
-                                disabled={!assignDriverId || busy === selected.id}
-                                style={{ border: "none", background: "#007404", color: "#fff", padding: "0.3rem 0.6rem", borderRadius: 4, cursor: assignDriverId ? "pointer" : "not-allowed", fontFamily: "inherit", fontSize: "0.78rem" }}
-                              >
-                                Assign
-                              </button>
+                            <span style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
+                              {drivers.filter((d) => d.status === "active").length === 0 ? (
+                                <span style={{ fontSize: "0.82rem", color: "#b3261e" }}>
+                                  No active drivers — add one in the Drivers page
+                                </span>
+                              ) : (
+                                <select
+                                  value={assignDriverId ?? ""}
+                                  onChange={(e) => setAssignDriverId(e.target.value ? parseInt(e.target.value) : null)}
+                                  style={{ border: "1px solid #e3e9f0", borderRadius: 4, padding: "0.3rem 0.4rem", fontFamily: "inherit" }}
+                                >
+                                  <option value="">Select driver…</option>
+                                  {drivers.filter((d) => d.status === "active").map((d) => (
+                                    <option key={d.id} value={d.id}>{d.name} ({d.phone})</option>
+                                  ))}
+                                </select>
+                              )}
+                              {drivers.filter((d) => d.status === "active").length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => assignDriver(selected)}
+                                  disabled={!assignDriverId || busy === selected.id}
+                                  style={{ border: "none", background: "#007404", color: "#fff", padding: "0.3rem 0.6rem", borderRadius: 4, cursor: assignDriverId ? "pointer" : "not-allowed", fontFamily: "inherit", fontSize: "0.78rem" }}
+                                >
+                                  Assign
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => setAssigningTo(null)}
@@ -469,7 +501,7 @@ export default function OrdersPage() {
                           ) : (
                             <button
                               type="button"
-                              onClick={() => setAssigningTo(selected.id)}
+                              onClick={() => openAssign(selected)}
                               style={{ border: "1px solid #007404", background: "#fff", color: "#007404", padding: "0.2rem 0.6rem", borderRadius: 4, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600, fontFamily: "inherit" }}
                             >
                               Assign driver
