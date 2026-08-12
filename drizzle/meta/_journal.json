@@ -1,5 +1,41 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1786424576354,
+      "tag": "0000_faithful_devos",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786473242336,
+      "tag": "0001_serious_night_nurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786475542391,
+      "tag": "0002_many_joshua_kane",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786476629401,
+      "tag": "0003_lame_amazoness",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1786525382928,
+      "tag": "0004_superb_spiral",
+      "breakpoints": true
+    }
+  ]
 }

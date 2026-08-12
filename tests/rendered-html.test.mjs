@@ -23,35 +23,22 @@ async function render() {
   );
 }
 
-test("server-renders the current Philly on the Block menu", async () => {
+test("server-renders the Philly on the Block homepage shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  const menu = [
-    ["Philly OTB", "$21.99"],
-    ["Classic Philly", "$21.99"],
-    ["Philly Melt", "$15.99"],
-    ["Fries", "$5.50"],
-    ["OTB Fries", "$20.99"],
-    ["Coke Can", "$2.75"],
-    ["Diet Coke Can", "$2.75"],
-    ["Bottled Coke", "$5.00"],
-  ];
 
-  for (const [name, price] of menu) {
-    assert.ok(html.includes(name), `expected rendered menu to include ${name}`);
-    assert.ok(html.includes(price), `expected rendered menu to include ${price}`);
-  }
-
+  assert.match(html, /Philly on the Block \| Cheesesteaks with attitude/);
   assert.match(html, /2600 W Victory Blvd/);
   assert.match(html, /\(818\) 406-6053/);
   assert.match(html, /https:\/\/www\.yelp\.com\/menu\/philly-on-the-block-burbank/);
-  assert.match(html, /\/images\/menu\/philly-otb\.jpg/);
-  assert.match(html, /\/images\/menu\/classic-philly\.jpg/);
-  assert.match(html, /\/images\/menu\/philly-melt\.jpg/);
-  assert.match(html, /\/images\/menu\/otb-fries\.jpg/);
+  assert.match(html, /OTB Ranch/);
+  assert.match(html, /OTB Tang/);
+  assert.match(html, /Built on the block\./);
+  assert.match(html, /\/images\/otb-logo-sign\.png/);
+  assert.match(html, /\/manifest\.webmanifest/);
   assert.doesNotMatch(html, /The Blockbuster|Broad Street Heat|Philly Water Ice/);
 });
 

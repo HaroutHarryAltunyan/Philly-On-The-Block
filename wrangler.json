@@ -1,0 +1,24 @@
+{
+  "name": "philly-on-the-block",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "dist/server/index.js",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "philly-on-the-block",
+      "database_id": "93555114-9595-481f-937c-b9d9b09ebae4"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "MENU_IMAGES",
+      "id": "278eaa8b346f4408be9b32c6ea8e8d7b"
+    }
+  ],
+  "jsx_factory": "React.createElement",
+  "jsx_fragment": "React.Fragment",
+  "assets": {
+    "directory": "dist/client"
+  }
+}

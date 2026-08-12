@@ -12,6 +12,19 @@ interface Env {
       };
     };
   };
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  MENU_IMAGES: {
+    put(
+      key: string,
+      value: ArrayBuffer | ReadableStream | string,
+      options?: { metadata?: Record<string, string> },
+    ): Promise<void>;
+    get(
+      key: string,
+      options?: { type: "arrayBuffer" },
+    ): Promise<{ value: ArrayBuffer | null; metadata?: Record<string, string> | null } | null>;
+  };
 }
 
 interface ExecutionContext {

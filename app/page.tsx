@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import InstallAppButton from "./components/install-app-button";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
 
@@ -15,6 +16,14 @@ type MenuItem = {
   image: string;
   photo?: boolean;
   imagePosition?: string;
+  stock?: number | null;
+  options?: MenuOption[];
+};
+
+type MenuOption = {
+  id: number;
+  name: string;
+  priceCents: number;
 };
 
 type CartLine = {
@@ -25,123 +34,46 @@ type CartLine = {
   optionPrice: number;
 };
 
-const menuItems: MenuItem[] = [
-  {
-    id: 1,
-    name: "Philly OTB",
-    category: "Cheesesteaks",
-    description: "Freshly baked bread, premium meat, grilled onions, spicy pepper, sharp white American, OTB Ranch, and OTB Tang.",
-    price: 21.99,
-    badge: "House favorite",
-    art: "philly-otb",
-    image: "/images/menu/philly-otb.jpg",
-    photo: true,
-    imagePosition: "50% 15%",
-  },
-  {
-    id: 2,
-    name: "Classic Philly",
-    category: "Cheesesteaks",
-    description: "Premium meat topped with grilled onions and sharp white American.",
-    price: 21.99,
-    art: "classic-philly",
-    image: "/images/menu/classic-philly.jpg",
-    photo: true,
-    imagePosition: "50% 56%",
-  },
-  {
-    id: 3,
-    name: "Philly Melt",
-    category: "Cheesesteaks",
-    description: "Choice of meat, grilled onions, and sharp white American in Texas toast.",
-    price: 15.99,
-    art: "philly-melt",
-    image: "/images/menu/philly-melt.jpg",
-    photo: true,
-    imagePosition: "50% 52%",
-  },
-  {
-    id: 4,
-    name: "Fries",
-    category: "Sides",
-    description: "Shoestring fries topped with house seasoning.",
-    price: 5.5,
-    art: "fries",
-    image: "/images/menu/philly-otb.jpg",
-    photo: true,
-    imagePosition: "50% 78%",
-  },
-  {
-    id: 5,
-    name: "OTB Fries",
-    category: "Sides",
-    description: "Shoestring fries, steak, grilled onions, sharp white American, OTB Ranch, and OTB Tang.",
-    price: 20.99,
-    badge: "Loaded",
-    art: "otb-fries",
-    image: "/images/menu/otb-fries.jpg",
-    photo: true,
-    imagePosition: "50% 52%",
-  },
-  {
-    id: 6,
-    name: "Coke Can",
-    category: "Drinks",
-    description: "The cold, refreshing, sparkling classic that America loves.",
-    price: 2.75,
-    art: "coke-can",
-    image: "/images/otb-lamp-post.png",
-  },
-  {
-    id: 7,
-    name: "Diet Coke Can",
-    category: "Drinks",
-    description: "A crisp, refreshing taste you know and love with zero calories.",
-    price: 2.75,
-    art: "diet-coke",
-    image: "/images/otb-food-truck.png",
-  },
-  {
-    id: 8,
-    name: "Bottled Coke",
-    category: "Drinks",
-    description: "The cold, refreshing, sparkling classic that America loves.",
-    price: 5,
-    art: "bottled-coke",
-    image: "/images/otb-logo-sign.png",
-  },
-];
+type ApiMenuItem = {
+  id: number;
+  name: string;
+  category: Category;
+  description: string;
+  price: number;
+  badge: string;
+  image: string;
+  imagePosition?: string;
+  photo: boolean;
+  stock?: number | null;
+  options?: MenuOption[];
+};
 
-const categories: Array<"All" | Category> = [
-  "All",
-  "Cheesesteaks",
-  "Sides",
-  "Drinks",
-];
+const categories: Array<"All" | Category> = ["All", "Cheesesteaks", "Sides", "Drinks"];
+
+function toMenuItem(item: ApiMenuItem): MenuItem {
+  const art = item.image.replace(/\/$/, "").split("/").pop()?.replace(/\.[a-z0-9]+$/i, "") ?? "philly-otb";
+  return {
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    description: item.description,
+    price: item.price,
+    badge: item.badge || undefined,
+    art,
+    image: item.image,
+    photo: item.photo,
+    imagePosition: item.imagePosition,
+    stock: item.stock ?? null,
+    options: item.options ?? [],
+  };
+}
 
 const money = (value: number) => `$${value.toFixed(2)}`;
 
-const weeklyHours = [
-  ["Monday", "Closed"],
-  ["Tuesday", "12–9 PM"],
-  ["Wednesday", "12–9 PM"],
-  ["Thursday", "12–9 PM"],
-  ["Friday", "12–9 PM"],
-  ["Saturday", "4–11 PM"],
-  ["Sunday", "4–11 PM"],
-];
+type HourSchedule = [number, number] | null;
 
-const hoursByDay: Record<string, [number, number] | null> = {
-  Monday: null,
-  Tuesday: [12 * 60, 21 * 60],
-  Wednesday: [12 * 60, 21 * 60],
-  Thursday: [12 * 60, 21 * 60],
-  Friday: [12 * 60, 21 * 60],
-  Saturday: [16 * 60, 23 * 60],
-  Sunday: [16 * 60, 23 * 60],
-};
-
-function getBusinessStatus() {
+function getBusinessStatus(hours: Record<string, HourSchedule> | null) {
+  if (!hours) return { open: false, label: "View today’s hours" };
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Los_Angeles",
     weekday: "long",
@@ -151,20 +83,28 @@ function getBusinessStatus() {
   }).formatToParts(new Date());
   const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
   const day = value("weekday") ?? "Monday";
-  const schedule = hoursByDay[day];
+  const schedule = hours[day];
 
   if (!schedule) return { open: false, label: "Closed today" };
 
   const minutes = Number(value("hour")) * 60 + Number(value("minute"));
   const [opens, closes] = schedule;
   if (minutes >= opens && minutes < closes) {
-    return { open: true, label: `Open now · until ${closes === 23 * 60 ? "11 PM" : "9 PM"}` };
+    return { open: true, label: `Open now · until ${formatClock(closes)}` };
   }
 
   return {
     open: false,
-    label: minutes < opens ? `Opens today · ${opens === 16 * 60 ? "4 PM" : "12 PM"}` : "Closed for today",
+    label: minutes < opens ? `Opens today · ${formatClock(opens)}` : "Closed for today",
   };
+}
+
+function formatClock(minutes: number) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const suffix = hour < 12 ? "AM" : "PM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return minute === 0 ? `${displayHour} ${suffix}` : `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
 const restaurantSchema = {
@@ -188,20 +128,183 @@ export default function Home() {
   const [fulfillment, setFulfillment] = useState<"Pickup" | "Delivery">("Pickup");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<Record<number, boolean>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "checkout" | "success">("cart");
   const [businessStatus, setBusinessStatus] = useState({ open: false, label: "View today’s hours" });
+  const [liveMenu, setLiveMenu] = useState<MenuItem[] | null>(null);
+  const [liveHours, setLiveHours] = useState<Record<string, [number, number] | null> | null>(null);
+  const [liveFees, setLiveFees] = useState<{ serviceFeeCents: number; taxRatePercent: number; deliveryFeeCents: number } | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponState, setCouponState] = useState<"idle" | "applying" | "applied" | "invalid">("idle");
+  const [orderNumber, setOrderNumber] = useState("");
+  const [orderError, setOrderError] = useState("");
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState(false);
+  const [deliveryFeeCents, setDeliveryFeeCents] = useState(0);
+  const [deliveryDistance, setDeliveryDistance] = useState<number | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState({ address: "", city: "", state: "", zip: "" });
+
+  function restoreCanceledCart() {
+    try {
+      const stored = sessionStorage.getItem("otb-cart");
+      if (!stored) return;
+      const lines = JSON.parse(stored) as Array<{ lineId: string; itemId: number; quantity: number; options: string[]; optionPrice: number }>;
+      const restored = lines
+        .map((line) => {
+          const item = liveMenu?.find((candidate) => candidate.id === line.itemId);
+          return item
+            ? { lineId: line.lineId, item, quantity: line.quantity, options: line.options, optionPrice: line.optionPrice }
+            : null;
+        })
+        .filter((line): line is CartLine => line !== null);
+      if (restored.length === lines.length) {
+        sessionStorage.removeItem("otb-cart");
+        setPendingRestore(false);
+        if (restored.length > 0) {
+          setCart(restored);
+          setCartOpen(true);
+        }
+      } else {
+        setPendingRestore(true);
+      }
+    } catch {
+      sessionStorage.removeItem("otb-cart");
+      setPendingRestore(false);
+    }
+  }
 
   useEffect(() => {
-    const refreshStatus = () => setBusinessStatus(getBusinessStatus());
+    let cancelled = false;
+
+    const loadMenu = () =>
+      fetch("/api/menu")
+        .then(async (response) => {
+          if (!response.ok) return null;
+          return (await response.json()) as { menu?: ApiMenuItem[] };
+        })
+        .then((data) => {
+          const items = data?.menu?.filter((item) => item.image) ?? null;
+          if (items && items.length > 0 && !cancelled) {
+            setLiveMenu(items.map(toMenuItem));
+          }
+        })
+        .catch(() => undefined);
+
+    const loadHours = () =>
+      fetch("/api/hours")
+        .then(async (response) => {
+          if (!response.ok) return null;
+          return (await response.json()) as {
+            weeklyHours?: Record<string, [string, string]>;
+            fees?: { serviceFeeCents?: number; taxRatePercent?: number; deliveryFeeCents?: number };
+          };
+        })
+        .then((data) => {
+          if (cancelled) return;
+          const raw = data?.weeklyHours;
+          if (raw) {
+            const converted: Record<string, [number, number] | null> = {};
+            for (const day of Object.keys(raw)) {
+              const [open, close] = raw[day];
+              if (open === "closed" || close === "closed") {
+                converted[day] = null;
+              } else {
+                const toMinutes = (value: string) => {
+                  const [h, m] = value.split(":").map(Number);
+                  return h * 60 + m;
+                };
+                converted[day] = [toMinutes(open), toMinutes(close)];
+              }
+            }
+            setLiveHours(converted);
+          }
+          if (data?.fees) {
+            setLiveFees({
+              serviceFeeCents: Math.round(Number(data.fees.serviceFeeCents) || 0),
+              taxRatePercent: Math.round(Number(data.fees.taxRatePercent) || 0),
+              deliveryFeeCents: Math.round(Number(data.fees.deliveryFeeCents) || 0),
+            });
+          }
+        })
+        .catch(() => undefined);
+
+    loadMenu();
+    loadHours();
+    const refreshTimer = window.setInterval(() => {
+      loadMenu();
+      loadHours();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshTimer);
+    };
+  }, []);
+
+  const hours = liveHours;
+  const menuItemsSource = liveMenu ?? [];
+
+  useEffect(() => {
+    if (!pendingRestore) return;
+    queueMicrotask(restoreCanceledCart);
+  }, [pendingRestore, liveMenu, menuItemsSource]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    const canceled = params.get("canceled");
+
+    if (canceled === "1") {
+      queueMicrotask(restoreCanceledCart);
+      window.history.replaceState({}, "", "/");
+      return;
+    }
+
+    if (sessionId) {
+      fetch(`/api/checkout/success?session_id=${encodeURIComponent(sessionId)}`)
+        .then(async (response) => {
+          const body = (await response.json()) as {
+            paid?: boolean;
+            order?: { orderNumber: string; totalCents: number; fulfillment: string };
+            error?: string;
+          };
+          if (!response.ok || !body.paid) {
+            throw new Error(body.error ?? "Payment wasn’t completed.");
+          }
+          return body.order!;
+        })
+        .then((order) => {
+          sessionStorage.removeItem("otb-cart");
+          setCart([]);
+          setFulfillment(order.fulfillment === "delivery" ? "Delivery" : "Pickup");
+          setOrderNumber(order.orderNumber);
+          setCartOpen(true);
+          setCheckoutStep("success");
+        })
+        .catch((error: unknown) => {
+          setOrderError(error instanceof Error ? error.message : "Payment wasn’t completed.");
+        })
+        .finally(() => {
+          window.history.replaceState({}, "", "/");
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const refreshStatus = () => setBusinessStatus(getBusinessStatus(hours));
     refreshStatus();
     const timer = window.setInterval(refreshStatus, 60_000);
     return () => window.clearInterval(timer);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveHours]);
 
   const visibleItems = useMemo(
-    () => (category === "All" ? menuItems : menuItems.filter((item) => item.category === category)),
-    [category],
+    () => (category === "All" ? menuItemsSource : menuItemsSource.filter((item) => item.category === category)),
+    [category, menuItemsSource],
   );
 
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
@@ -209,11 +312,31 @@ export default function Home() {
     (sum, line) => sum + (line.item.price + line.optionPrice) * line.quantity,
     0,
   );
-  const serviceFee = subtotal > 0 ? 1.5 : 0;
-  const tax = subtotal * 0.08;
-  const total = subtotal + serviceFee + tax;
+  const fees = liveFees ?? { serviceFeeCents: 150, taxRatePercent: 8, deliveryFeeCents: 0 };
+  const serviceFee = subtotal > 0 ? fees.serviceFeeCents / 100 : 0;
+  const dynamicDeliveryFee = fulfillment === "Delivery" && subtotal > 0 ? deliveryFeeCents / 100 : 0;
+  const deliveryFee = dynamicDeliveryFee > 0 ? dynamicDeliveryFee : fees.deliveryFeeCents / 100;
+  const taxable = Math.max(subtotal - couponDiscount, 0);
+  const tax = taxable * (fees.taxRatePercent / 100);
+  const total = taxable + serviceFee + deliveryFee + tax;
+
+  const soldOut = (item: MenuItem) => (item.stock ?? null) !== null && (item.stock ?? 0) <= 0;
+
+  const cartWarnings: Record<string, "removed" | "soldout"> = {};
+  if (liveMenu) {
+    for (const line of cart) {
+      const fresh = liveMenu.find((item) => item.id === line.item.id);
+      if (!fresh) {
+        cartWarnings[line.lineId] = "removed";
+      } else if (soldOut(fresh)) {
+        cartWarnings[line.lineId] = "soldout";
+      }
+    }
+  }
+  const cartBlocked = Object.keys(cartWarnings).length > 0;
 
   function openItem(item: MenuItem) {
+    setSelectedOptions({});
     setSelectedItem(item);
   }
 
@@ -243,15 +366,202 @@ export default function Home() {
     );
   }
 
-  function submitOrder(event: FormEvent<HTMLFormElement>) {
+  async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setCheckoutStep("success");
+    const formData = new FormData(event.currentTarget);
+    const name = String(formData.get("name") ?? "").trim();
+    const phone = String(formData.get("phone") ?? "").trim();
+    const addressLine1 = String(formData.get("address") ?? "").trim();
+    const addressLine2 = String(formData.get("address2") ?? "").trim();
+    const city = String(formData.get("city") ?? "").trim();
+    const state = String(formData.get("state") ?? "").trim();
+    const zip = String(formData.get("zip") ?? "").trim();
+    let address = [addressLine1, addressLine2].filter(Boolean).join(", ");
+    if (city || state || zip) {
+      const parts = [city, state, zip].filter(Boolean);
+      address = address ? `${address}, ${parts.join(" ")}` : parts.join(", ");
+    }
+    const notes = String(formData.get("notes") ?? "").trim();
+    let destLat = "";
+    let destLng = "";
+
+    if (fulfillment === "Delivery" && addressLine1) {
+      setPlacingOrder(true);
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${addressLine1}${city ? ', ' + city : ''}${zip ? ', ' + zip : ''}`)}&limit=1`,
+          { headers: { "Accept-Language": "en" } },
+        );
+        if (geoRes.ok) {
+          const geoData = (await geoRes.json()) as Array<{ lat: string; lon: string }>;
+          if (geoData.length > 0) {
+            destLat = geoData[0].lat;
+            destLng = geoData[0].lon;
+          }
+        }
+      } catch {
+        // geocoding failed — proceed without coords, tracking page will show store pin
+      }
+    }
+
+    setOrderError("");
+    setPlacingOrder(true);
+
+      fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone,
+          address: fulfillment === "Delivery" ? address : "",
+          destLat,
+          destLng,
+          fulfillment: fulfillment === "Delivery" ? "delivery" : "pickup",
+          notes,
+          couponCode: couponState === "applied" ? couponCode : "",
+          deliveryFeeCents,
+          items: cart.map((line) => ({
+            id: line.item.id,
+            name: line.item.name,
+            priceCents: Math.round(line.item.price * 100),
+            optionPriceCents: Math.round(line.optionPrice * 100),
+            quantity: line.quantity,
+            options: line.options,
+          })),
+        }),
+      })
+      .then(async (response) => {
+        const body = (await response.json()) as {
+          mode?: "stripe" | "demo";
+          url?: string;
+          order?: { orderNumber: string };
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(body.error ?? "Couldn’t place the order. Try again.");
+        }
+        return body;
+      })
+      .then((body) => {
+        if (body.mode === "stripe" && body.url) {
+          try {
+            sessionStorage.setItem("otb-cart", JSON.stringify(cart));
+            sessionStorage.setItem("otb-fulfillment", fulfillment);
+          } catch {
+            // storage is optional
+          }
+          window.location.href = body.url;
+          return;
+        }
+        setOrderNumber(body.order?.orderNumber ?? "");
+        setCheckoutStep("success");
+      })
+      .catch((error: unknown) => {
+        setOrderError(error instanceof Error ? error.message : "Couldn’t place the order. Try again.");
+        setPlacingOrder(false);
+      });
   }
+
+  function applyCoupon() {
+    const code = couponCode.trim();
+    if (!code || couponState === "applying") return;
+    setCouponState("applying");
+    setOrderError("");
+    fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, subtotalCents: Math.round(subtotal * 100) }),
+    })
+      .then(async (response) => {
+        const body = (await response.json()) as {
+          valid?: boolean;
+          discountCents?: number;
+          error?: string;
+        };
+        if (!response.ok || !body.valid || body.discountCents === undefined) {
+          throw new Error(body.error ?? "That code doesn’t apply.");
+        }
+        return body;
+      })
+      .then((body) => {
+        setCouponDiscount(body.discountCents! / 100);
+        setCouponState("applied");
+      })
+      .catch((err: unknown) => {
+        setCouponDiscount(0);
+        setCouponState("invalid");
+        setOrderError(err instanceof Error ? err.message : "That code doesn’t apply.");
+      });
+  }
+
+  function removeCoupon() {
+    setCouponCode("");
+    setCouponDiscount(0);
+    setCouponState("idle");
+    setOrderError("");
+  }
+
+  useEffect(() => {
+    if (couponState === "applied" && cart.length > 0) {
+      queueMicrotask(applyCoupon);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal, cart.length]);
+
+  const calculateDeliveryFee = async (addressLine1: string, city: string, state: string, zip: string) => {
+    if (!addressLine1 || fulfillment !== "Delivery") {
+      setDeliveryFeeCents(0);
+      setDeliveryDistance(null);
+      return;
+    }
+
+    setFeeLoading(true);
+    try {
+      const res = await fetch("/api/delivery-fee", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: addressLine1, city, state, zip }),
+      });
+      if (!res.ok) {
+        setDeliveryFeeCents(0);
+        setDeliveryDistance(null);
+        return;
+      }
+      const data = (await res.json()) as { feeCents?: number; miles?: number | null };
+      setDeliveryFeeCents(data.feeCents ?? 0);
+      setDeliveryDistance(data.miles ?? null);
+    } catch {
+      setDeliveryFeeCents(0);
+      setDeliveryDistance(null);
+    } finally {
+      setFeeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const shouldQuote = fulfillment === "Delivery" && checkoutStep === "checkout" && deliveryAddress.address;
+    const timer = setTimeout(() => {
+      if (shouldQuote) {
+        void calculateDeliveryFee(deliveryAddress.address, deliveryAddress.city, deliveryAddress.state, deliveryAddress.zip);
+      } else {
+        setDeliveryFeeCents(0);
+        setDeliveryDistance(null);
+      }
+    }, shouldQuote ? 500 : 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deliveryAddress, fulfillment, checkoutStep]);
 
   function resetOrder() {
     setCart([]);
     setCheckoutStep("cart");
     setCartOpen(false);
+    setOrderNumber("");
+    setOrderError("");
+    removeCoupon();
+    setDeliveryFeeCents(0);
+    setDeliveryDistance(null);
+    setDeliveryAddress({ address: "", city: "", state: "", zip: "" });
   }
 
   return (
@@ -269,6 +579,8 @@ export default function Home() {
         <nav className="desktop-nav" aria-label="Main navigation">
           <a href="#menu">Menu</a>
           <a href="#story">Our story</a>
+          <a href="/reserve">Events</a>
+          <a href="/track">Track order</a>
           <a href="#visit">Visit</a>
         </nav>
 
@@ -372,9 +684,14 @@ export default function Home() {
         </div>
 
         <div className="order-layout">
+          {liveMenu === null ? (
+            <div className="empty-state">Loading menu…</div>
+          ) : visibleItems.length === 0 ? (
+            <div className="empty-state">Nothing on the menu right now — check back soon.</div>
+          ) : (
           <div className="menu-grid">
             {visibleItems.map((item, index) => (
-              <article className="menu-card" key={item.id}>
+              <article className={`menu-card${soldOut(item) ? " is-sold-out" : ""}`} key={item.id}>
                 <button
                   type="button"
                   className={`menu-art ${item.art}${item.photo ? " has-photo" : ""}`}
@@ -389,6 +706,7 @@ export default function Home() {
                     style={item.imagePosition ? { objectPosition: item.imagePosition } : undefined}
                   />
                   {item.badge && <span className="menu-badge">{item.badge}</span>}
+                  {soldOut(item) && <span className="menu-soldout">Sold out</span>}
                 </button>
                 <div className="menu-info">
                   <div className="menu-title-row">
@@ -399,13 +717,19 @@ export default function Home() {
                     <strong>{money(item.price)}</strong>
                   </div>
                   <p>{item.description}</p>
-                  <button type="button" className="add-button" onClick={() => openItem(item)}>
-                    Add to bag <span>+</span>
+                  <button
+                    type="button"
+                    className="add-button"
+                    onClick={() => openItem(item)}
+                    disabled={soldOut(item)}
+                  >
+                    {soldOut(item) ? "Sold out" : <>Add to bag <span>+</span></>}
                   </button>
                 </div>
               </article>
             ))}
           </div>
+          )}
 
           <aside className={`cart-panel ${cartOpen ? "is-open" : ""}`} aria-label="Your order">
             <button className="cart-close" type="button" onClick={() => setCartOpen(false)} aria-label="Close cart">×</button>
@@ -413,9 +737,9 @@ export default function Home() {
             {checkoutStep === "success" ? (
               <div className="order-success">
                 <span className="success-check">✓</span>
-                <p>Demo order received</p>
+                <p>Order received</p>
                 <h3>You’re on the board.</h3>
-                <div className="order-number"><span>Order</span><strong>#PTB-042</strong></div>
+                <div className="order-number"><span>Order</span><strong>{orderNumber || "#PTB-000"}</strong></div>
                 <p className="success-copy">Your {fulfillment.toLowerCase()} window is approximately 20–25 minutes.</p>
                 <button type="button" className="button button-dark" onClick={resetOrder}>Start another order</button>
               </div>
@@ -433,14 +757,85 @@ export default function Home() {
                   <input name="phone" autoComplete="tel" placeholder="(215) 555-0123" required />
                 </label>
                 {fulfillment === "Delivery" && (
-                  <label>
-                    Delivery address
-                    <input name="address" autoComplete="street-address" placeholder="Street address" required />
-                  </label>
+                  <fieldset className="delivery-address-fields">
+                    <legend>Delivery address</legend>
+                    <label>
+                      Street address
+                      <input name="address" autoComplete="street-address" placeholder="123 N Vine St" required value={deliveryAddress.address} onChange={(e) => setDeliveryAddress((prev) => ({ ...prev, address: e.target.value }))} />
+                    </label>
+                    <label>
+                      Apt / Suite / Unit (optional)
+                      <input name="address2" autoComplete="address-line2" placeholder="Apt 4B" />
+                    </label>
+                    <label>
+                      City
+                      <input name="city" autoComplete="address-level2" placeholder="Burbank" required value={deliveryAddress.city} onChange={(e) => setDeliveryAddress((prev) => ({ ...prev, city: e.target.value }))} />
+                    </label>
+                    <div className="address-row">
+                      <label>
+                        State
+                        <input name="state" autoComplete="address-level1" placeholder="CA" defaultValue="CA" required value={deliveryAddress.state} onChange={(e) => setDeliveryAddress((prev) => ({ ...prev, state: e.target.value }))} />
+                      </label>
+                      <label>
+                        ZIP code
+                        <input name="zip" autoComplete="postal-code" placeholder="91505" required value={deliveryAddress.zip} onChange={(e) => setDeliveryAddress((prev) => ({ ...prev, zip: e.target.value }))} />
+                      </label>
+                    </div>
+                    {feeLoading && <small className="fee-loading">Calculating delivery fee…</small>}
+                    {deliveryDistance !== null && deliveryFeeCents > 0 && (
+                      <small className="fee-result">
+                        📍 {deliveryDistance} mi from truck · Delivery fee: ${((deliveryFeeCents / 100).toFixed(2))}
+                      </small>
+                    )}
+                  </fieldset>
                 )}
-                <div className="demo-note">Demo checkout — no payment will be collected.</div>
-                <button className="button button-primary checkout-button" type="submit">
-                  Place demo order · {money(total)}
+                <label>
+                  Notes for the kitchen
+                  <textarea name="notes" rows={2} maxLength={500} placeholder="No onions on the OTB, extra OTB Tang…" />
+                </label>
+                {couponState === "applied" && couponDiscount > 0 ? (
+                  <div className="coupon-applied" role="status">
+                    <span>
+                      <strong>{couponCode.toUpperCase()}</strong> applied · saves {money(couponDiscount)}
+                    </span>
+                    <button type="button" onClick={removeCoupon}>Remove</button>
+                  </div>
+                ) : (
+                  <div className="coupon-row">
+                    <input
+                      value={couponCode}
+                      onChange={(event) => {
+                        setCouponCode(event.target.value.toUpperCase());
+                        if (couponState === "invalid") setCouponState("idle");
+                      }}
+                      placeholder="Coupon code"
+                      aria-label="Coupon code"
+                      maxLength={32}
+                    />
+                    <button
+                      type="button"
+                      className="coupon-apply"
+                      disabled={couponState === "applying" || couponCode.trim() === ""}
+                      onClick={applyCoupon}
+                    >
+                      {couponState === "applying" ? "Checking…" : "Apply"}
+                    </button>
+                  </div>
+                )}
+                <div className="cart-totals">
+                  <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
+                  {couponState === "applied" && couponDiscount > 0 && (
+                    <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(couponDiscount)}</strong></div>
+                  )}
+                  {deliveryFee > 0 && (
+                    <div><span>Delivery fee</span><strong>{money(deliveryFee)}</strong></div>
+                  )}
+                  <div><span>Tax + service</span><strong>{money(serviceFee + tax)}</strong></div>
+                  <div className="grand-total"><span>Total</span><strong>{money(total)}</strong></div>
+                </div>
+                {orderError && <div className="demo-note" role="alert">{orderError}</div>}
+                <button className="button button-primary checkout-button" type="submit" disabled={placingOrder}>
+                  {placingOrder ? "Placing order…" : `Place order · ${money(total)}`}
                 </button>
               </form>
             ) : (
@@ -468,6 +863,12 @@ export default function Home() {
                           <span>{line.quantity}</span>
                           <button type="button" onClick={() => updateQuantity(line.lineId, 1)} aria-label={`Add one ${line.item.name}`}>+</button>
                         </div>
+                        {cartWarnings[line.lineId] === "soldout" && (
+                          <small className="cart-warning">Just sold out — remove it to check out.</small>
+                        )}
+                        {cartWarnings[line.lineId] === "removed" && (
+                          <small className="cart-warning">No longer on the menu — remove it to check out.</small>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -475,16 +876,23 @@ export default function Home() {
 
                 <div className="cart-totals">
                   <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
+                  {couponState === "applied" && couponDiscount > 0 && (
+                    <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(couponDiscount)}</strong></div>
+                  )}
+                  {deliveryFee > 0 && (
+                    <div><span>Delivery fee</span><strong>{money(deliveryFee)}</strong></div>
+                  )}
                   <div><span>Tax + service</span><strong>{money(serviceFee + tax)}</strong></div>
                   <div className="grand-total"><span>Total</span><strong>{money(total)}</strong></div>
                 </div>
                 <button
                   className="button button-primary checkout-button"
                   type="button"
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || cartBlocked}
                   onClick={() => setCheckoutStep("checkout")}
                 >
-                  Checkout <span>→</span>
+                  {cartBlocked ? "Check bag for sold-out items" : "Checkout"}
+                  {!cartBlocked && <span>→</span>}
                 </button>
                 <small className="cart-time">Ready in approximately 20–25 minutes</small>
               </>
@@ -523,8 +931,8 @@ export default function Home() {
             <a className="visit-phone" href="tel:+18184066053">(818) 406-6053</a>
           </address>
           <div className="hours">
-            {weeklyHours.map(([day, hours]) => (
-              <div key={day}><span>{day}</span><strong>{hours}</strong></div>
+            {(liveHours ? Object.entries(liveHours) : []).map(([day, schedule]) => (
+              <div key={day}><span>{day}</span><strong>{schedule ? `${formatClock(schedule[0])}–${formatClock(schedule[1])}` : "Closed"}</strong></div>
             ))}
           </div>
           <div className="visit-actions">
@@ -548,8 +956,15 @@ export default function Home() {
           <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
         </a>
         <p>Fresh bread. Big flavor. Block energy.</p>
-        <div className="footer-links"><a href="#menu">Menu</a><a href="#visit">Hours</a><a href="tel:+18184066053">Call</a></div>
+        <div className="footer-links">
+          <a href="#menu">Menu</a>
+          <a href="/reserve">Events</a>
+          <a href="#visit">Hours</a>
+          <a href="/track">Track order</a>
+          <a href="tel:+18184066053">Call</a>
+        </div>
         <small>© 2026 Philly on the Block · 2600 W Victory Blvd, Burbank, CA</small>
+      <InstallAppButton />
       </footer>
 
       {selectedItem && (
@@ -575,13 +990,55 @@ export default function Home() {
               <strong>{money(selectedItem.price)}</strong>
             </div>
 
-            <button
-              className="button button-primary modal-add"
-              type="button"
-              onClick={() => addToCart(selectedItem)}
-            >
-              Add to bag · {money(selectedItem.price)}
-            </button>
+            {soldOut(selectedItem) && (
+              <div className="soldout-note">Sold out right now — stock returns soon.</div>
+            )}
+
+            {!soldOut(selectedItem) && (selectedItem.options?.length ?? 0) > 0 && (
+              <fieldset className="option-list">
+                <legend>Make it yours <small>(optional)</small></legend>
+                {selectedItem.options!.map((option) => {
+                  const checked = selectedOptions[option.id] === true;
+                  const toggle = () =>
+                    setSelectedOptions((current) => ({ ...current, [option.id]: !checked }));
+                  return (
+                    <label key={option.id} className={`option-row${checked ? " is-checked" : ""}`}>
+                      <input type="checkbox" checked={checked} onChange={toggle} />
+                      <span>{option.name}</span>
+                      <strong>{option.priceCents > 0 ? `+${money(option.priceCents / 100)}` : "Included"}</strong>
+                    </label>
+                  );
+                })}
+              </fieldset>
+            )}
+
+            {!soldOut(selectedItem) && (
+              <button
+                className="button button-primary modal-add"
+                type="button"
+                disabled={selectedItem.stock !== null && (selectedItem.stock ?? 0) === 0}
+                onClick={() =>
+                  addToCart(
+                    selectedItem,
+                    selectedItem.options
+                      ?.filter((option) => selectedOptions[option.id])
+                      .map((option) => option.name) ?? [],
+                    selectedItem.options
+                      ?.filter((option) => selectedOptions[option.id])
+                      .reduce((sum, option) => sum + option.priceCents, 0) ?? 0,
+                  )
+                }
+              >
+                Add to bag ·{" "}
+                {money(
+                  selectedItem.price +
+                    ((selectedItem.options
+                      ?.filter((option) => selectedOptions[option.id])
+                      .reduce((sum, option) => sum + option.priceCents, 0) ?? 0) /
+                      100),
+                )}
+              </button>
+            )}
           </section>
         </div>
       )}
