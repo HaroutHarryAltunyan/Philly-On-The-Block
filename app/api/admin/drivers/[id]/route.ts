@@ -27,8 +27,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const payload = (await request.json()) as { name?: string; phone?: string; password?: string; status?: string };
     const updates: Record<string, string> = {};
 
-    if (payload.name !== undefined) updates.name = payload.name.trim();
-    if (payload.phone !== undefined) updates.phone = payload.phone.trim();
+    if (payload.name !== undefined) {
+      const name = payload.name.trim();
+      if (!name) {
+        return Response.json({ error: "name must not be empty" }, { status: 400 });
+      }
+      updates.name = name;
+    }
+    if (payload.phone !== undefined) {
+      const phone = payload.phone.trim();
+      if (!phone) {
+        return Response.json({ error: "phone must not be empty" }, { status: 400 });
+      }
+      updates.phone = phone;
+    }
     if (payload.status !== undefined) {
       if (!DRIVER_STATUSES.includes(payload.status as (typeof DRIVER_STATUSES)[number])) {
         return Response.json(
@@ -59,6 +71,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return Response.json({ driver: publicDriver(updated) });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    const detail =
+      error instanceof Error ? [error.message, (error.cause as Error | undefined)?.message].filter(Boolean).join(" ") : "";
+    if (detail.includes("UNIQUE constraint failed")) {
+      return Response.json({ error: "A driver with that phone already exists" }, { status: 409 });
+    }
     return Response.json(
       { error: error instanceof Error ? error.message : "Failed to update driver" },
       { status: 500 },

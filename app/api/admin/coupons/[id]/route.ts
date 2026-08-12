@@ -44,16 +44,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
 
     const current = existing[0];
-    const code = payload.code?.trim().toUpperCase() ?? current.code;
-    if (code) {
-      const clash = await db
-        .select()
-        .from(coupons)
-        .where(and(eq(coupons.code, code), sql`${coupons.id} != ${couponId}`))
-        .limit(1);
-      if (clash.length > 0) {
-        return Response.json({ error: "A coupon with that code already exists" }, { status: 409 });
-      }
+    const code = payload.code !== undefined ? payload.code.trim().toUpperCase() : current.code;
+    if (!code) {
+      return Response.json({ error: "code must not be empty" }, { status: 400 });
+    }
+    const clash = await db
+      .select()
+      .from(coupons)
+      .where(and(eq(coupons.code, code), sql`${coupons.id} != ${couponId}`))
+      .limit(1);
+    if (clash.length > 0) {
+      return Response.json({ error: "A coupon with that code already exists" }, { status: 409 });
     }
 
     const [coupon] = await db

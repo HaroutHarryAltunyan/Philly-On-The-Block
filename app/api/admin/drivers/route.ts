@@ -57,6 +57,11 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    const detail =
+      error instanceof Error ? [error.message, (error.cause as Error | undefined)?.message].filter(Boolean).join(" ") : "";
+    if (detail.includes("UNIQUE constraint failed")) {
+      return Response.json({ error: "A driver with that phone already exists" }, { status: 409 });
+    }
     return Response.json(
       { error: error instanceof Error ? error.message : "Failed to create driver" },
       { status: 500 },

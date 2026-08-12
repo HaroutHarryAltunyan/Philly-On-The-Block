@@ -26,6 +26,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (payload.partySize !== undefined && (typeof payload.partySize !== "number" || payload.partySize < 1)) {
       return Response.json({ error: "partySize must be >= 1" }, { status: 400 });
     }
+    if (payload.dateTime !== undefined) {
+      const dateTime = new Date(payload.dateTime);
+      if (Number.isNaN(dateTime.getTime())) {
+        return Response.json({ error: "dateTime must be a valid date" }, { status: 400 });
+      }
+    }
 
     const existing = await db.select().from(reservations).where(eq(reservations.id, reservationId)).limit(1);
     if (existing.length === 0) {

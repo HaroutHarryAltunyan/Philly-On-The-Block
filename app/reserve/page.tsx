@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import SiteHeader from "../components/site-header";
 
 type RevealedReservation = {
@@ -33,12 +33,22 @@ export default function ReservePage() {
   const [phone, setPhone] = useState("");
   const [eventType, setEventType] = useState("");
   const [guestCount, setGuestCount] = useState("10");
-  const [date, setDate] = useState(todayInputValue);
+  const [date, setDate] = useState("");
   const [time, setTime] = useState("18:00");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reservation, setReservation] = useState<RevealedReservation | null>(null);
+
+  // The default date is timezone-dependent, so compute it client-side after
+  // hydration. Server (UTC) and customer (local) timezones can disagree on
+  // the current date, which would otherwise cause a hydration mismatch.
+  useEffect(() => {
+    if (date === "") {
+      const timer = window.setTimeout(() => setDate(todayInputValue()), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [date]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

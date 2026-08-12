@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { menuItems } from "../../../../../db/schema";
+import { menuItemOptions, menuItems } from "../../../../../db/schema";
 import { AuthError, requireAdmin, toErrorResponse } from "../../../../../lib/admin-routes";
 import {
   attachMenuOptions,
@@ -38,17 +38,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       return Response.json({ error: "priceCents must be a non-negative number" }, { status: 400 });
     }
 
-    const stockQty = parseStockQty(payload.stockQty);
-    if (stockQty === null) {
-      return Response.json({ error: "stockQty must be a non-negative number" }, { status: 400 });
-    }
-
     const existing = await db.select().from(menuItems).where(eq(menuItems.id, itemId)).limit(1);
     if (existing.length === 0) {
       return Response.json({ error: "Menu item not found" }, { status: 404 });
     }
 
     const current = existing[0];
+    let stockQty: number | null;
+    if (payload.stockQty === undefined) {
+      stockQty = current.stockQty ?? null;
+    } else if (payload.stockQty === null) {
+      stockQty = null;
+    } else {
+      const parsed = parseStockQty(payload.stockQty);
+      if (parsed === null || parsed === undefined) {
+        return Response.json({ error: "stockQty must be a non-negative number" }, { status: 400 });
+      }
+      stockQty = parsed;
+    }
     const [item] = await db
       .update(menuItems)
       .set({
@@ -61,7 +68,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         imagePosition:
           payload.imagePosition !== undefined ? payload.imagePosition.trim() : current.imagePosition,
         available: payload.available ?? current.available,
-        stockQty: stockQty !== undefined ? stockQty : current.stockQty,
+        stockQty,
         sortOrder: payload.sortOrder ?? current.sortOrder,
       })
       .where(and(eq(menuItems.id, itemId)))
@@ -93,6 +100,9 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       return Response.json({ error: "Menu item not found" }, { status: 404 });
     }
 
+    // The runtime bootstrap DDL creates menu_item_options without a foreign
+    // key, so delete options explicitly to avoid orphans.
+    await db.delete(menuItemOptions).where(eq(menuItemOptions.menuItemId, itemId));
     await db.delete(menuItems).where(and(eq(menuItems.id, itemId)));
     return Response.json({ deleted: itemId });
   } catch (error) {

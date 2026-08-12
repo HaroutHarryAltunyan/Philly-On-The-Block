@@ -164,7 +164,7 @@ export default function DriversPage() {
                       <td>—</td>
                       <td>
                         <div className="status-actions">
-                          <button type="button" onClick={() => updateDriver(driver)}>Save</button>
+                          <button type="button" onClick={() => updateDriver(editing)}>Save</button>
                           <button type="button" onClick={() => setEditing(null)}>Cancel</button>
                         </div>
                       </td>
