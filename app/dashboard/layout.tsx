@@ -28,10 +28,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   });
 
   useEffect(() => {
-    if (pathname.startsWith("/dashboard/drivers") || pathname.startsWith("/dashboard/driving")) return;
+    if (pathname === "/dashboard/drivers" || pathname === "/dashboard/drivers/login" || pathname.startsWith("/dashboard/driving")) return;
     let cancelled = false;
 
-    if (pathname === "/dashboard/login" || pathname === "/dashboard/drivers/login") {
+    if (pathname === "/dashboard/login") {
       api<{ authenticated: boolean }>("/api/admin/me")
         .then((me) => {
           if (cancelled) return;
@@ -88,7 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
-  if (pathname.startsWith("/dashboard/drivers") || pathname.startsWith("/dashboard/driving") || pathname === "/dashboard/login") {
+  if (pathname === "/dashboard/drivers" || pathname === "/dashboard/drivers/login" || pathname.startsWith("/dashboard/driving") || pathname === "/dashboard/login") {
     return <>{children}</>;
   }
 

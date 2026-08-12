@@ -206,7 +206,12 @@ export async function sha256Hex(value: string): Promise<string> {
 let bootstrapPromise: Promise<void> | null = null;
 
 export function ensureBootstrap(db: Db): Promise<void> {
-  bootstrapPromise ??= bootstrap(db);
+  if (bootstrapPromise === null) {
+    bootstrapPromise = bootstrap(db).catch((error) => {
+      bootstrapPromise = null;
+      throw error;
+    });
+  }
   return bootstrapPromise;
 }
 

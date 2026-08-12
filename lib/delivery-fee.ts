@@ -1,6 +1,8 @@
+import { STORE_LOCATION } from "./tracking";
+
 // Food truck location: 2600 W Victory Blvd, Burbank, CA 91505
-const TRUCK_LAT = 34.1808;
-const TRUCK_LNG = -118.3198;
+const TRUCK_LAT = STORE_LOCATION.latitude;
+const TRUCK_LNG = STORE_LOCATION.longitude;
 const CENTS_PER_MILE = 300;
 
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -29,7 +31,12 @@ export async function computeDeliveryFeeCents(
   try {
     const geoRes = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-      { headers: { "Accept-Language": "en" } },
+      {
+        headers: {
+          "Accept-Language": "en",
+          "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery fee lookup)",
+        },
+      },
     );
     if (!geoRes.ok) return null;
 

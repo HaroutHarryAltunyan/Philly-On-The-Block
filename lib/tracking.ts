@@ -1,6 +1,6 @@
 export const STORE_LOCATION = {
-  latitude: 34.18683,
-  longitude: -118.34155,
+  latitude: 34.1841,
+  longitude: -118.3396,
   label: "Philly on the Block — 2600 W Victory Blvd, Burbank",
 } as const;
 
@@ -21,8 +21,11 @@ export function milesBetween(
 }
 
 export function parseCoordinatePair(lat: unknown, lng: unknown): { latitude: number; longitude: number } | null {
-  const latitude = Number(lat);
-  const longitude = Number(lng);
+  const latText = String(lat ?? "").trim();
+  const lngText = String(lng ?? "").trim();
+  if (!latText || !lngText) return null;
+  const latitude = Number(latText);
+  const longitude = Number(lngText);
   if (
     !Number.isFinite(latitude) ||
     Math.abs(latitude) > 90 ||
@@ -38,7 +41,12 @@ export async function geocodeAddress(address: string): Promise<{ latitude: numbe
   try {
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`,
-      { headers: { Accept: "application/json" } },
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery geocoding)",
+        },
+      },
     );
     if (!response.ok) return null;
     const results = (await response.json()) as { lat?: string; lon?: string }[];

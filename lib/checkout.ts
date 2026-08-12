@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { getSetting } from "./admin-auth";
@@ -169,15 +169,17 @@ export async function markOrderPaid(
   orderId: number,
   paymentMethod: string,
 ): Promise<boolean> {
-  const [existing] = await db.select().from(schema.orders).where(eq(schema.orders.id, orderId)).limit(1);
-  if (!existing || existing.paymentStatus === "paid") return false;
-
-  await db
+  const [updated] = await db
     .update(schema.orders)
     .set({ paymentStatus: "paid", paymentMethod, paidAt: new Date() })
-    .where(eq(schema.orders.id, orderId));
+    .where(
+      sql`${schema.orders.id} = ${orderId} AND ${schema.orders.paymentStatus} != 'paid' AND ${schema.orders.status} != 'cancelled'`,
+    )
+    .returning();
 
-  const lines = JSON.parse(existing.items) as OrderLine[];
+  if (!updated) return false;
+
+  const lines = JSON.parse(updated.items) as OrderLine[];
   await decrementStock(db, lines);
   return true;
 }

@@ -70,6 +70,13 @@ function toMenuItem(item: ApiMenuItem): MenuItem {
 
 const money = (value: number) => `$${value.toFixed(2)}`;
 
+function buildFullAddress(line1: string, line2: string, city: string, state: string, zip: string) {
+  const lines = [line1.trim(), line2.trim()].filter(Boolean);
+  const region = [city.trim(), state.trim(), zip.trim()].filter(Boolean);
+  const address = lines.join(", ");
+  return region.length > 0 ? `${address}${address ? ", " : ""}${region.join(" ")}` : address;
+}
+
 type HourSchedule = [number, number] | null;
 
 function getBusinessStatus(hours: Record<string, HourSchedule> | null) {
@@ -145,7 +152,7 @@ export default function Home() {
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(0);
   const [deliveryDistance, setDeliveryDistance] = useState<number | null>(null);
   const [feeLoading, setFeeLoading] = useState(false);
-  const [deliveryAddress, setDeliveryAddress] = useState({ address: "", city: "", state: "", zip: "" });
+  const [deliveryAddress, setDeliveryAddress] = useState({ address: "", address2: "", city: "", state: "", zip: "" });
 
   function restoreCanceledCart() {
     try {
@@ -162,6 +169,11 @@ export default function Home() {
         .filter((line): line is CartLine => line !== null);
       if (restored.length === lines.length) {
         sessionStorage.removeItem("otb-cart");
+        const storedFulfillment = sessionStorage.getItem("otb-fulfillment");
+        if (storedFulfillment === "Delivery" || storedFulfillment === "Pickup") {
+          setFulfillment(storedFulfillment);
+        }
+        sessionStorage.removeItem("otb-fulfillment");
         setPendingRestore(false);
         if (restored.length > 0) {
           setCart(restored);
@@ -315,7 +327,8 @@ export default function Home() {
   const fees = liveFees ?? { serviceFeeCents: 150, taxRatePercent: 8, deliveryFeeCents: 0 };
   const serviceFee = subtotal > 0 ? fees.serviceFeeCents / 100 : 0;
   const dynamicDeliveryFee = fulfillment === "Delivery" && subtotal > 0 ? deliveryFeeCents / 100 : 0;
-  const deliveryFee = dynamicDeliveryFee > 0 ? dynamicDeliveryFee : fees.deliveryFeeCents / 100;
+  const deliveryFee =
+    fulfillment === "Delivery" ? (dynamicDeliveryFee > 0 ? dynamicDeliveryFee : fees.deliveryFeeCents / 100) : 0;
   const taxable = Math.max(subtotal - couponDiscount, 0);
   const tax = taxable * (fees.taxRatePercent / 100);
   const total = taxable + serviceFee + deliveryFee + tax;
@@ -376,11 +389,7 @@ export default function Home() {
     const city = String(formData.get("city") ?? "").trim();
     const state = String(formData.get("state") ?? "").trim();
     const zip = String(formData.get("zip") ?? "").trim();
-    let address = [addressLine1, addressLine2].filter(Boolean).join(", ");
-    if (city || state || zip) {
-      const parts = [city, state, zip].filter(Boolean);
-      address = address ? `${address}, ${parts.join(" ")}` : parts.join(", ");
-    }
+    const address = buildFullAddress(addressLine1, addressLine2, city, state, zip);
     const notes = String(formData.get("notes") ?? "").trim();
     let destLat = "";
     let destLng = "";
@@ -390,7 +399,7 @@ export default function Home() {
       try {
         const geoRes = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${addressLine1}${city ? ', ' + city : ''}${zip ? ', ' + zip : ''}`)}&limit=1`,
-          { headers: { "Accept-Language": "en" } },
+          { headers: { "Accept-Language": "en", "User-Agent": "PhillyOnTheBlock/0.1 (restaurant order geocoding)" } },
         );
         if (geoRes.ok) {
           const geoData = (await geoRes.json()) as Array<{ lat: string; lon: string }>;
@@ -508,7 +517,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtotal, cart.length]);
 
-  const calculateDeliveryFee = async (addressLine1: string, city: string, state: string, zip: string) => {
+  const calculateDeliveryFee = async (addressLine1: string, addressLine2: string, city: string, state: string, zip: string) => {
     if (!addressLine1 || fulfillment !== "Delivery") {
       setDeliveryFeeCents(0);
       setDeliveryDistance(null);
@@ -520,7 +529,7 @@ export default function Home() {
       const res = await fetch("/api/delivery-fee", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: addressLine1, city, state, zip }),
+        body: JSON.stringify({ address: buildFullAddress(addressLine1, addressLine2, city, state, zip) }),
       });
       if (!res.ok) {
         setDeliveryFeeCents(0);
@@ -542,7 +551,7 @@ export default function Home() {
     const shouldQuote = fulfillment === "Delivery" && checkoutStep === "checkout" && deliveryAddress.address;
     const timer = setTimeout(() => {
       if (shouldQuote) {
-        void calculateDeliveryFee(deliveryAddress.address, deliveryAddress.city, deliveryAddress.state, deliveryAddress.zip);
+        void calculateDeliveryFee(deliveryAddress.address, deliveryAddress.address2, deliveryAddress.city, deliveryAddress.state, deliveryAddress.zip);
       } else {
         setDeliveryFeeCents(0);
         setDeliveryDistance(null);
@@ -561,7 +570,7 @@ export default function Home() {
     removeCoupon();
     setDeliveryFeeCents(0);
     setDeliveryDistance(null);
-    setDeliveryAddress({ address: "", city: "", state: "", zip: "" });
+    setDeliveryAddress({ address: "", address2: "", city: "", state: "", zip: "" });
   }
 
   return (
@@ -765,7 +774,7 @@ export default function Home() {
                     </label>
                     <label>
                       Apt / Suite / Unit (optional)
-                      <input name="address2" autoComplete="address-line2" placeholder="Apt 4B" />
+                      <input name="address2" autoComplete="address-line2" placeholder="Apt 4B" value={deliveryAddress.address2} onChange={(e) => setDeliveryAddress((prev) => ({ ...prev, address2: e.target.value }))} />
                     </label>
                     <label>
                       City
@@ -834,8 +843,12 @@ export default function Home() {
                   <div className="grand-total"><span>Total</span><strong>{money(total)}</strong></div>
                 </div>
                 {orderError && <div className="demo-note" role="alert">{orderError}</div>}
-                <button className="button button-primary checkout-button" type="submit" disabled={placingOrder}>
-                  {placingOrder ? "Placing order…" : `Place order · ${money(total)}`}
+                <button className="button button-primary checkout-button" type="submit" disabled={placingOrder || (fulfillment === "Delivery" && feeLoading)}>
+                  {placingOrder
+                    ? "Placing order…"
+                    : fulfillment === "Delivery" && feeLoading
+                      ? "Calculating delivery fee…"
+                      : `Place order · ${money(total)}`}
                 </button>
               </form>
             ) : (
@@ -1023,9 +1036,9 @@ export default function Home() {
                     selectedItem.options
                       ?.filter((option) => selectedOptions[option.id])
                       .map((option) => option.name) ?? [],
-                    selectedItem.options
+                    (selectedItem.options
                       ?.filter((option) => selectedOptions[option.id])
-                      .reduce((sum, option) => sum + option.priceCents, 0) ?? 0,
+                      .reduce((sum, option) => sum + option.priceCents, 0) ?? 0) / 100,
                   )
                 }
               >

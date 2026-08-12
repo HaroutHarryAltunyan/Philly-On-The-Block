@@ -4,7 +4,7 @@ import { ensureBootstrap } from "../../../db/bootstrap";
 import { orders } from "../../../db/schema";
 import { createCheckoutSession, isStripeConfigured } from "../../../lib/payments";
 import { toErrorResponse } from "../../../lib/admin-routes";
-import { OrderValidationError, parseOrderPayload } from "../../../lib/orders";
+import { OrderValidationError, parseOrderPayload, type ParsedOrder } from "../../../lib/orders";
 import {
   decrementStock,
   findActiveCoupon,
@@ -13,6 +13,51 @@ import {
   validateStock,
 } from "../../../lib/checkout";
 import { computeDeliveryFeeCents } from "../../../lib/delivery-fee";
+
+function buildStripeLineItems(parsed: ParsedOrder) {
+  const feesLineCents = parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents;
+  const subtotalCents = parsed.lines.reduce(
+    (sum, line) => sum + (line.priceCents + line.optionPriceCents) * line.quantity,
+    0,
+  );
+  const discountCents = Math.min(parsed.discountCents, subtotalCents);
+
+  const itemLines = parsed.lines.map((line) => ({
+    name: line.options.length > 0 ? `${line.name} (${line.options.join(", ")})` : line.name,
+    unitCents: line.priceCents + line.optionPriceCents,
+    quantity: line.quantity,
+    totalCents: (line.priceCents + line.optionPriceCents) * line.quantity,
+  }));
+
+  // Apply the discount to the fees line first; any remainder is deducted
+  // from the item lines proportionally so the session total always matches
+  // the order total and no line amount ever goes negative. The fees line
+  // itself is added by createCheckoutSession via totalCents.
+  const itemDiscountCents = Math.max(discountCents - feesLineCents, 0);
+  if (itemDiscountCents > 0 && subtotalCents > 0) {
+    let remaining = itemDiscountCents;
+    itemLines.forEach((line, index) => {
+      if (remaining <= 0) return;
+      const isLast = index === itemLines.length - 1;
+      const share = isLast
+        ? Math.min(remaining, line.totalCents)
+        : Math.min(Math.floor((line.totalCents / subtotalCents) * itemDiscountCents), line.totalCents, remaining);
+      line.totalCents -= share;
+      remaining -= share;
+    });
+  }
+
+  return itemLines.map((line) => {
+    // When a line absorbed a discount its total may no longer divide evenly
+    // by its quantity, so bill it as a single unit to keep the cents exact.
+    const discounted = line.totalCents !== line.unitCents * line.quantity;
+    return {
+      name: line.name,
+      quantity: discounted ? 1 : line.quantity,
+      amountCents: discounted ? line.totalCents : line.unitCents,
+    };
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -106,15 +151,12 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin;
+    const feesLineCents = parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents;
     const { url, sessionId } = await createCheckoutSession({
       orderId: inserted.id,
       orderNumber,
-      lines: parsed.lines.map((line) => ({
-        name: line.options.length > 0 ? `${line.name} (${line.options.join(", ")})` : line.name,
-        quantity: line.quantity,
-        amountCents: line.priceCents + line.optionPriceCents,
-      })),
-      totalCents: parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents - parsed.discountCents,
+      lines: buildStripeLineItems(parsed),
+      totalCents: Math.max(feesLineCents - parsed.discountCents, 0),
       successUrl: `${origin}/?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${origin}/?canceled=1`,
     });

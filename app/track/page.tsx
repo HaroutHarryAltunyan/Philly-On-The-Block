@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import SiteHeader from "../components/site-header";
 import LiveMap, { MapMarker } from "../components/live-map";
 import { money, ORDER_STATUS_LABELS } from "../../lib/admin-client";
@@ -108,7 +108,32 @@ export default function TrackPage() {
   const [recent, setRecent] = useState<TrackedOrder[]>([]);
   const [error, setError] = useState("");
   const [searching, setSearching] = useState(false);
-  const [pollTimer, setPollTimer] = useState<number | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
+
+  function stopPolling() {
+    if (pollTimerRef.current !== null) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }
+
+  function startPolling(selectedNumber: string) {
+    stopPolling();
+    const timer = window.setInterval(async () => {
+      try {
+        const params = new URLSearchParams({ phone });
+        if (selectedNumber) params.set("number", selectedNumber);
+        const res = await fetch(`/api/order-status?${params.toString()}`);
+        const data = (await res.json()) as { order?: TrackedOrder };
+        if (data.order) {
+          setOrder(data.order);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 4000);
+    pollTimerRef.current = timer;
+  }
 
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,10 +141,7 @@ export default function TrackPage() {
     setError("");
     setOrder(null);
     setRecent([]);
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      setPollTimer(null);
-    }
+    stopPolling();
     try {
       const params = new URLSearchParams({ phone });
       if (number) params.set("number", number);
@@ -135,18 +157,7 @@ export default function TrackPage() {
       if (body.order) {
         setOrder(body.order);
         if (body.order.fulfillment === "delivery" && body.order.status !== "completed" && body.order.status !== "cancelled") {
-          const timer = window.setInterval(async () => {
-            try {
-              const res = await fetch(`/api/order-status?phone=${encodeURIComponent(phone)}${number ? `&number=${encodeURIComponent(number)}` : ""}`);
-              const data = (await res.json()) as { order?: TrackedOrder };
-              if (data.order) {
-                setOrder(data.order);
-              }
-            } catch {
-              // ignore polling errors
-            }
-          }, 4000);
-          setPollTimer(timer);
+          startPolling(body.order.orderNumber);
         }
       } else {
         setRecent(body.orders ?? []);
@@ -160,9 +171,7 @@ export default function TrackPage() {
 
   useEffect(() => {
     return () => {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-      }
+      stopPolling();
     };
   }, []);
 
@@ -188,19 +197,17 @@ export default function TrackPage() {
 
       <form
         onSubmit={search}
-        style={{ display: "grid", gridTemplateColumns: number ? "1fr 1fr auto" : "1fr auto", gap: "0.75rem", margin: "1.5rem 0", alignItems: "end" }}
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "0.75rem", margin: "1.5rem 0", alignItems: "end" }}
       >
-        {number && (
-          <label style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#5c6b7a" }}>
-            Order number
-            <input
-              value={number}
-              onChange={(event) => setNumber(event.target.value.toUpperCase())}
-              placeholder="PTB-042"
-              style={inputStyle}
-            />
-          </label>
-        )}
+        <label style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#5c6b7a" }}>
+          Order number
+          <input
+            value={number}
+            onChange={(event) => setNumber(event.target.value.toUpperCase())}
+            placeholder="PTB-042 (optional)"
+            style={inputStyle}
+          />
+        </label>
         <label style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#5c6b7a" }}>
           Phone number
           <input
@@ -230,7 +237,7 @@ export default function TrackPage() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => { setRecent([]); setOrder(item); }}
+                onClick={() => { setRecent([]); setOrder(item); if (item.fulfillment === "delivery" && item.status !== "completed" && item.status !== "cancelled") startPolling(item.orderNumber); }}
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
@@ -312,7 +319,7 @@ export default function TrackPage() {
 
           <button
             type="button"
-            onClick={() => { setOrder(null); setRecent([]); if (pollTimer) { clearInterval(pollTimer); setPollTimer(null); } }}
+            onClick={() => { setOrder(null); setRecent([]); stopPolling(); }}
             style={{ border: "0", background: "none", color: "#3a6ea5", fontWeight: 700, cursor: "pointer", font: "inherit", fontSize: "0.85rem", marginTop: "1rem", padding: 0, textDecoration: "underline" }}
           >
             ← Track another order

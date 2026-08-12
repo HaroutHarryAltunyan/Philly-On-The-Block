@@ -44,11 +44,28 @@ export default function DrivingPage() {
   const [currentLat, setCurrentLat] = useState<number | null>(null);
   const [currentLng, setCurrentLng] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  const [destCoords, setDestCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [geocodedDest, setGeocodedDest] = useState<{
+    orderId: number;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const watchIdRef = useRef<number | null>(null);
   const lastPostRef = useRef(0);
   const lastPosRef = useRef({ lat: 0, lng: 0 });
+
+  const knownDest = useMemo(
+    () => (order ? parseCoordinatePair(order.destLat, order.destLng) : null),
+    [order],
+  );
+  const destCoords = useMemo(
+    () =>
+      knownDest ??
+      (geocodedDest && order && geocodedDest.orderId === order.id
+        ? { latitude: geocodedDest.latitude, longitude: geocodedDest.longitude }
+        : null),
+    [knownDest, geocodedDest, order],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -102,22 +119,15 @@ export default function DrivingPage() {
   }, [order, destCoords, currentLat, currentLng]);
 
   useEffect(() => {
-    if (!order) return;
-    const known = parseCoordinatePair(order.destLat, order.destLng);
-    if (known) {
-      setDestCoords(known);
-      return;
-    }
-    if (!order.address) return;
+    if (!order || knownDest || !order.address) return;
     let cancelled = false;
-    setDestCoords(null);
     geocodeAddress(order.address).then((coords) => {
-      if (!cancelled && coords) setDestCoords(coords);
+      if (!cancelled && coords) setGeocodedDest({ orderId: order.id, ...coords });
     });
     return () => {
       cancelled = true;
     };
-  }, [order]);
+  }, [order, knownDest]);
 
   useEffect(() => {
     if (!order) return;
@@ -169,7 +179,6 @@ export default function DrivingPage() {
         const lng = pos.coords.longitude;
         setCurrentLat(lat);
         setCurrentLng(lng);
-        setGeoError("");
 
         const now = Date.now();
         const minTime = 3000;
@@ -179,7 +188,7 @@ export default function DrivingPage() {
           { latitude: lat, longitude: lng },
         ) * 1609.34;
 
-        if (now - lastPostRef.current >= minTime && dist >= minDist) {
+        if (now - lastPostRef.current >= minTime || dist >= minDist) {
           lastPostRef.current = now;
           lastPosRef.current = { lat, lng };
           if (orderId) {
@@ -187,11 +196,29 @@ export default function DrivingPage() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ latitude: String(lat), longitude: String(lng) }),
-            }).then((res) => {
-              if (res.ok) {
-                setLastUpdate(new Date().toLocaleTimeString());
-              }
-            }).catch(() => {});
+            })
+              .then((res) => {
+                if (res.ok) {
+                  setLastUpdate(new Date().toLocaleTimeString());
+                  setGeoError("");
+                  return;
+                }
+                return res
+                  .json()
+                  .then((body) => {
+                    const message =
+                      body && typeof body.error === "string"
+                        ? body.error
+                        : `Location update failed (${res.status})`;
+                    setGeoError(`Location sharing issue: ${message}`);
+                  })
+                  .catch(() => {
+                    setGeoError(`Location update failed (${res.status})`);
+                  });
+              })
+              .catch(() => {
+                setGeoError("Could not reach the server to share your location. Check your connection.");
+              });
           }
         }
       },

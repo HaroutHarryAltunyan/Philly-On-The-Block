@@ -1,4 +1,4 @@
-const CACHE_NAME = "otb-pwa-v1";
+const CACHE_NAME = "otb-pwa-v2";
 const CACHEABLE_PATHS = ["/images/", "/icons/"];
 
 self.addEventListener("install", () => {
@@ -15,6 +15,17 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Return the last cached page that is actually a successful response. Never
+// fall back to a cached error page (401/404/500) — that is what makes
+// navigation dead-end on a sign-in screen.
+async function lastGoodNavigation(cache, request) {
+  const cached = await cache.match(request);
+  if (cached && cached.ok) return cached;
+  const home = await cache.match("/");
+  if (home && home.ok) return home;
+  return null;
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -29,10 +40,20 @@ self.addEventListener("fetch", (event) => {
         const cache = await caches.open(CACHE_NAME);
         try {
           const fresh = await fetch(request);
-          await cache.put(request, fresh.clone());
-          return fresh;
+          if (fresh.ok) {
+            try {
+              await cache.put(request, fresh.clone());
+            } catch {
+              // cache write is best-effort
+            }
+            return fresh;
+          }
+          // Never cache or serve broken responses (401/404/500). If the
+          // network gave us a failure, fall back to the last good page so
+          // navigation never dead-ends on an error screen.
+          return (await lastGoodNavigation(cache, request)) || fresh;
         } catch {
-          return (await cache.match(request)) || (await cache.match("/")) || Response.error();
+          return (await lastGoodNavigation(cache, request)) || Response.error();
         }
       })(),
     );
