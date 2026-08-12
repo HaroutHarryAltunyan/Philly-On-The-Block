@@ -33,3 +33,19 @@ export function parseCoordinatePair(lat: unknown, lng: unknown): { latitude: num
   }
   return { latitude, longitude };
 }
+
+export async function geocodeAddress(address: string): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (!response.ok) return null;
+    const results = (await response.json()) as { lat?: string; lon?: string }[];
+    const first = results[0];
+    if (!first || first.lat === undefined || first.lon === undefined) return null;
+    return { latitude: parseFloat(first.lat), longitude: parseFloat(first.lon) };
+  } catch {
+    return null;
+  }
+}

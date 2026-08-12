@@ -36,7 +36,7 @@ test("server-renders the Philly on the Block homepage shell", async () => {
   assert.match(html, /https:\/\/www\.yelp\.com\/menu\/philly-on-the-block-burbank/);
   assert.match(html, /OTB Ranch/);
   assert.match(html, /OTB Tang/);
-  assert.match(html, /Built on the block\./);
+  assert.match(html, /Built on\s*<span>the block\.<\/span>/);
   assert.match(html, /\/images\/otb-logo-sign\.png/);
   assert.match(html, /\/manifest\.webmanifest/);
   assert.doesNotMatch(html, /The Blockbuster|Broad Street Heat|Philly Water Ice/);

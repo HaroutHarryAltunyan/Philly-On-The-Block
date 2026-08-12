@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatTime } from "../../../lib/admin-client";
-import { STORE_LOCATION } from "../../../lib/tracking";
+import { STORE_LOCATION, geocodeAddress, parseCoordinatePair } from "../../../lib/tracking";
 import LiveMap, { MapMarker } from "../../components/live-map";
 
 type Order = {
@@ -26,6 +26,7 @@ export default function DeliveryMapPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [error, setError] = useState("");
+  const [geocoded, setGeocoded] = useState<Record<number, { latitude: number; longitude: number }>>({});
 
   const load = useCallback(() => {
     api<{ orders: Order[] }>("/api/admin/orders")
@@ -45,6 +46,18 @@ export default function DeliveryMapPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const missing = orders.filter((o) => {
+      const dest = parseCoordinatePair(o.destLat, o.destLng);
+      return !dest && o.address && !geocoded[o.id];
+    });
+    for (const order of missing) {
+      geocodeAddress(order.address).then((coords) => {
+        if (coords) setGeocoded((prev) => ({ ...prev, [order.id]: coords }));
+      });
+    }
+  }, [orders, geocoded]);
+
   const deliveries = useMemo(
     () =>
       orders.filter(
@@ -63,12 +76,12 @@ export default function DeliveryMapPage() {
       { lat: STORE_LOCATION.latitude, lng: STORE_LOCATION.longitude, kind: "store", label: STORE_LOCATION.label },
     ];
     for (const order of deliveries) {
-      const destLat = parseFloat(order.destLat);
-      const destLng = parseFloat(order.destLng);
-      if (Number.isFinite(destLat) && Number.isFinite(destLng)) {
+      const known = parseCoordinatePair(order.destLat, order.destLng);
+      const dest = known ?? geocoded[order.id];
+      if (dest) {
         list.push({
-          lat: destLat,
-          lng: destLng,
+          lat: dest.latitude,
+          lng: dest.longitude,
           kind: "destination",
           label: `${order.orderNumber} — ${order.name} (${order.address})`,
         });
@@ -85,7 +98,7 @@ export default function DeliveryMapPage() {
       }
     }
     return list;
-  }, [deliveries, nameOf]);
+  }, [deliveries, nameOf, geocoded]);
 
   return (
     <div className="admin-topbar" style={{ display: "block", maxWidth: 1100, margin: "0 auto" }}>

@@ -6,7 +6,7 @@ import Link from "next/link";
 import SiteHeader from "../../components/site-header";
 import LiveMap, { MapMarker } from "../../components/live-map";
 import { api, ORDER_STATUS_LABELS } from "../../../lib/admin-client";
-import { milesBetween, STORE_LOCATION } from "@/lib/tracking";
+import { milesBetween, STORE_LOCATION, geocodeAddress, parseCoordinatePair } from "@/lib/tracking";
 
 type DriverSession = { authenticated: true; driver: { id: number; name: string; phone: string } } | { authenticated: false };
 type AdminSession = { authenticated: boolean };
@@ -39,10 +39,12 @@ export default function DrivingPage() {
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [driver, setDriver] = useState<DriverSession>({ authenticated: false });
   const [error, setError] = useState("");
+  const [geoError, setGeoError] = useState("");
   const [sharing, setSharing] = useState(false);
   const [currentLat, setCurrentLat] = useState<number | null>(null);
   const [currentLng, setCurrentLng] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [destCoords, setDestCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const watchIdRef = useRef<number | null>(null);
   const lastPostRef = useRef(0);
@@ -89,18 +91,33 @@ export default function DrivingPage() {
   }, [orderId, router]);
 
   const distance = useMemo(() => {
-    if (!order || currentLat === null || currentLng === null) return "";
-    const destLat = parseFloat(order.destLat);
-    const destLng = parseFloat(order.destLng);
-    if (!Number.isFinite(destLat) || !Number.isFinite(destLng)) return "";
+    if (!order || !destCoords || currentLat === null || currentLng === null) return "";
     const dist = milesBetween(
       { latitude: currentLat, longitude: currentLng },
-      { latitude: destLat, longitude: destLng },
+      { latitude: destCoords.latitude, longitude: destCoords.longitude },
     );
     return dist < 1
       ? "Less than 1 mile from delivery"
       : `${Math.round(dist)} miles from delivery`;
-  }, [order, currentLat, currentLng]);
+  }, [order, destCoords, currentLat, currentLng]);
+
+  useEffect(() => {
+    if (!order) return;
+    const known = parseCoordinatePair(order.destLat, order.destLng);
+    if (known) {
+      setDestCoords(known);
+      return;
+    }
+    if (!order.address) return;
+    let cancelled = false;
+    setDestCoords(null);
+    geocodeAddress(order.address).then((coords) => {
+      if (!cancelled && coords) setDestCoords(coords);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [order]);
 
   useEffect(() => {
     if (!order) return;
@@ -116,18 +133,34 @@ export default function DrivingPage() {
   }, [order, orderId, driver]);
 
   function stopSharing() {
+    if (watchIdRef.current) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
     setSharing(false);
     setCurrentLat(null);
     setCurrentLng(null);
   }
 
+  function geolocationErrorMessage(err: GeolocationPositionError) {
+    switch (err.code) {
+      case err.PERMISSION_DENIED:
+        return "Location permission was denied. When your browser asks for access, tap \"Allow\", or enable location for this site in your browser settings, then try again.";
+      case err.POSITION_UNAVAILABLE:
+        return "Your location is currently unavailable. Make sure GPS or wifi is turned on and you have reception, then try again.";
+      default:
+        return `Geolocation error: ${err.message}`;
+    }
+  }
+
   async function startSharing() {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser");
+      setGeoError("Geolocation is not supported by your browser");
       return;
     }
 
     setSharing(true);
+    setGeoError("");
     setError("");
 
     const id = navigator.geolocation.watchPosition(
@@ -136,6 +169,7 @@ export default function DrivingPage() {
         const lng = pos.coords.longitude;
         setCurrentLat(lat);
         setCurrentLng(lng);
+        setGeoError("");
 
         const now = Date.now();
         const minTime = 3000;
@@ -162,8 +196,8 @@ export default function DrivingPage() {
         }
       },
       (err) => {
-        setError(`Geolocation error: ${err.message}`);
         stopSharing();
+        setGeoError(geolocationErrorMessage(err));
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 },
     );
@@ -193,14 +227,10 @@ export default function DrivingPage() {
     }
   }
 
-  const destLat = parseFloat(order?.destLat ?? "");
-  const destLng = parseFloat(order?.destLng ?? "");
-  const hasDest = Number.isFinite(destLat) && Number.isFinite(destLng);
-
   const markers: MapMarker[] = [
     { lat: STORE_LOCATION.latitude, lng: STORE_LOCATION.longitude, kind: "store", label: "Philly on the Block" },
-    ...(hasDest
-      ? [{ lat: destLat, lng: destLng, kind: "destination" as const, label: order?.address || "Delivery address" }]
+    ...(destCoords
+      ? [{ lat: destCoords.latitude, lng: destCoords.longitude, kind: "destination" as const, label: order?.address || "Delivery address" }]
       : []),
     ...(currentLat !== null && currentLng !== null ? [{ lat: currentLat, lng: currentLng, kind: "rider" as const }] : []),
   ];
@@ -222,7 +252,7 @@ export default function DrivingPage() {
         <SiteHeader />
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "3rem 1.25rem", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" }}>
           <div style={{ border: "2px solid #0b0b0d", background: "#f8d7da", borderRadius: 8, padding: "1rem", fontWeight: 600, marginBottom: "1rem" }}>{error}</div>
-          <Link href={driver.authenticated === true ? "/dashboard/drivers" : "/dashboard/orders"} style={{ color: "#3a6ea5" }}>← Back to orders</Link>
+          <Link href={driver.authenticated === true ? "/dashboard/drivers" : "/dashboard/orders"} style={{ color: "#3a6ea5" }}>← Back to dashboard</Link>
         </main>
       </>
     );
@@ -291,7 +321,26 @@ export default function DrivingPage() {
           </div>
         </div>
 
-        {error && <div style={{ border: "2px solid #0b0b0d", background: "#f8d7da", borderRadius: 8, padding: "0.7rem 0.9rem", fontWeight: 600, marginBottom: "1rem" }}>{error}</div>}
+        {geoError && (
+          <div style={{ border: "2px solid #0b0b0d", background: "#f8d7da", borderRadius: 8, padding: "0.7rem 0.9rem", fontWeight: 600, marginBottom: "1rem" }}>
+            {geoError}
+          </div>
+        )}
+
+        {order && (
+          <div style={{ border: "2px solid #0b0b0d", borderRadius: 12, padding: "0.9rem 1rem", background: "#fff", marginBottom: "1rem", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>🏠 Delivering to</div>
+              <div style={{ fontSize: "0.9rem", marginTop: "0.15rem" }}>{order.address}</div>
+              <div style={{ fontSize: "0.78rem", color: "#5c6b7a" }}>
+                {order.name} · {order.phone}
+              </div>
+            </div>
+            {distance && (
+              <div style={{ fontWeight: 700, fontSize: "0.9rem", alignSelf: "center", color: "#3a6ea5" }}>{distance}</div>
+            )}
+          </div>
+        )}
 
         {order && order.status === "completed" && (
           <div style={{ border: "2px solid #0b0b0d", background: "#d4edda", borderRadius: 8, padding: "1rem", marginBottom: "1rem", fontWeight: 600 }}>
@@ -311,6 +360,7 @@ export default function DrivingPage() {
         <div style={{ marginTop: "1.5rem", fontSize: "0.85rem", color: "#5c6b7a" }}>
           <p><strong>How it works:</strong></p>
           <ol style={{ paddingLeft: "1.5rem" }}>
+            <li>When your browser asks for location access, tap &quot;Allow&quot; — without it the map can&apos;t track you</li>
             <li>Click &quot;Start sharing location&quot; to begin sending your GPS position</li>
             <li>Your location updates every 3 seconds (or when you move 50m+)</li>
             <li>Customers tracking their order will see your position on their map</li>
