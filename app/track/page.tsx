@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import SiteHeader from "../components/site-header";
 import LiveMap, { MapMarker } from "../components/live-map";
 import { money, ORDER_STATUS_LABELS } from "../../lib/admin-client";
-import { milesBetween } from "../../lib/tracking";
+import { milesBetween, STORE_LOCATION } from "../../lib/tracking";
 
 type TrackedOrder = {
   id: number;
@@ -42,7 +42,9 @@ function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
   }, []);
 
   const { markers, distanceText, lastUpdated, hasDriver } = useMemo(() => {
-    const nextMarkers: MapMarker[] = [];
+    const nextMarkers: MapMarker[] = [
+      { lat: STORE_LOCATION.latitude, lng: STORE_LOCATION.longitude, kind: "store", label: STORE_LOCATION.label },
+    ];
     const destLat = parseFloat(order.destLat);
     const destLng = parseFloat(order.destLng);
     if (Number.isFinite(destLat) && Number.isFinite(destLng)) {
@@ -92,7 +94,7 @@ function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
       <LiveMap markers={markers} height="350px" />
       {!hasDriver && !order.driverUpdatedAt && (
         <div style={{ fontSize: "0.82rem", color: "#5c6b7a", marginTop: "0.5rem" }}>
-          Driver location will appear once they pick up your order.
+          Your order is on the truck — the driver marker will appear once it heads your way.
         </div>
       )}
     </div>

@@ -10,6 +10,7 @@ type SessionState = { status: "checking" } | { status: "authenticated"; passcode
 const NAV = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/orders", label: "Orders" },
+  { href: "/dashboard/map", label: "Delivery Map" },
   { href: "/dashboard/reservations", label: "Reservations" },
   { href: "/dashboard/menu", label: "Menu" },
   { href: "/dashboard/coupons", label: "Coupons" },
