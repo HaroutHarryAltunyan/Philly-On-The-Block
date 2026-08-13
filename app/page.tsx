@@ -625,7 +625,8 @@ export default function Home() {
         <div className="hero-visual" aria-label="Philly on the Block neighborhood illustration">
           <img className="scene-crosswalk" src="/images/otb-crosswalk.png" alt="" />
           <img className="scene-truck" src="/images/otb-food-truck.png" alt="Philly on the Block food truck" />
-          <img className="scene-mascot" src="/images/otb-mascot-right.png" alt="Philly on the Block sandwich maker holding a cheesesteak" />
+          <img className="scene-mascot-left" src="/images/otb-mascot-left.png" alt="Philly on the Block founder holding a cheesesteak" />
+          <img className="scene-mascot" src="/images/otb-mascot-right.png" alt="Philly on the Block founder holding a cheesesteak" />
           <img className="scene-sign" src="/images/otb-street-sign.png" alt="Philly on the Block at Philly 8th Street" />
           <div className="hero-stamp" aria-hidden="true">
             <span>Chopped fresh</span>
