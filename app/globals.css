@@ -387,8 +387,8 @@ a {
 .scene-truck {
   z-index: 2;
   left: -1%;
-  bottom: 10%;
-  width: 28%;
+  bottom: 15%;
+  width: 35%;
 }
 
 .scene-mascot,
@@ -1071,7 +1071,7 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .hero-visual { min-height: 480px; }
   .scene-crosswalk { width: 145%; left: -22%; }
   .scene-sign { width: 50%; left: 12%; top: 14%; }
-  .scene-truck { width: 28%; left: -3%; bottom: 8%; }
+  .scene-truck { width: 34%; left: -2%; bottom: 15%; }
   .scene-mascot, .scene-mascot-left { width: 38%; }
   .scene-mascot-left { left: 24%; }
   .scene-mascot { left: 58%; }
