@@ -37,24 +37,49 @@ export function parseCoordinatePair(lat: unknown, lng: unknown): { latitude: num
   return { latitude, longitude };
 }
 
-export async function geocodeAddress(address: string): Promise<{ latitude: number; longitude: number } | null> {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`,
-      {
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery geocoding)",
-        },
-        signal: AbortSignal.timeout(8000),
-      },
-    );
-    if (!response.ok) return null;
-    const results = (await response.json()) as { lat?: string; lon?: string }[];
-    const first = results[0];
-    if (!first || first.lat === undefined || first.lon === undefined) return null;
-    return { latitude: parseFloat(first.lat), longitude: parseFloat(first.lon) };
-  } catch {
-    return null;
+function addressVariants(address: string): string[] {
+  const parts = address
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const variants: string[] = [];
+  for (let i = parts.length; i > 0; i--) {
+    variants.push(parts.slice(0, i).join(", "));
   }
+  const seen = new Set<string>();
+  return variants.filter((v) => {
+    if (seen.has(v)) return false;
+    seen.add(v);
+    return true;
+  });
+}
+
+async function geocodeQuery(query: string): Promise<{ latitude: number; longitude: number } | null> {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery geocoding)",
+      },
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (!response.ok) return null;
+  const results = (await response.json()) as { lat?: string; lon?: string }[];
+  const first = results[0];
+  if (!first || first.lat === undefined || first.lon === undefined) return null;
+  return { latitude: parseFloat(first.lat), longitude: parseFloat(first.lon) };
+}
+
+export async function geocodeAddress(address: string): Promise<{ latitude: number; longitude: number } | null> {
+  for (const variant of addressVariants(address)) {
+    try {
+      const coords = await geocodeQuery(variant);
+      if (coords) return coords;
+    } catch {
+      // fall through to the next, simpler variant
+    }
+  }
+  return null;
 }
