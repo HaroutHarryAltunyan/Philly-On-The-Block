@@ -1076,8 +1076,8 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .scene-mascot, .scene-mascot-left { width: 38%; }
   .scene-mascot-left { left: 24%; }
   .scene-mascot { left: 58%; }
-  .map-pin { left: 45%; bottom: 8%; width: 72px; height: 72px; }
-  .map-pin span { font-size: 22px; }
+  .map-pin { left: 28%; bottom: calc(5px + 32.2vw); width: 52px; height: 52px; }
+  .map-pin span { font-size: 20px; }
   .road-two { top: 60%; }
   .road-four { top: 53%; }
   .hero-ticket { left: 20px; right: 20px; bottom: 28px; min-width: 0; }
