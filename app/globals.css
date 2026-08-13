@@ -386,32 +386,32 @@ a {
 
 .scene-truck {
   z-index: 2;
-  left: 37%;
-  bottom: 6%;
-  width: 26%;
+  left: -1%;
+  bottom: 10%;
+  width: 28%;
 }
 
 .scene-mascot,
 .scene-mascot-left {
   z-index: 3;
   bottom: -4%;
-  width: 40%;
+  width: 34%;
   filter: drop-shadow(10px 13px 0 rgba(8, 19, 31, 0.14));
 }
 
 .scene-mascot {
-  right: -2%;
+  left: 62%;
 }
 
 .scene-mascot-left {
-  left: -2%;
+  left: 30%;
 }
 
 .scene-sign {
-  z-index: 2;
-  left: 25%;
-  top: 1%;
-  width: 40%;
+  z-index: 1;
+  left: 20%;
+  top: 18%;
+  width: 46%;
 }
 
 .hero-stamp {
@@ -1070,11 +1070,11 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .hero-proof { margin-top: 40px; }
   .hero-visual { min-height: 480px; }
   .scene-crosswalk { width: 145%; left: -22%; }
-  .scene-sign { width: 48%; left: 7%; top: 5%; }
-  .scene-truck { width: 24%; left: 38%; bottom: 10%; }
-  .scene-mascot, .scene-mascot-left { width: 42%; }
-  .scene-mascot { right: -4%; }
-  .scene-mascot-left { left: -4%; }
+  .scene-sign { width: 50%; left: 12%; top: 14%; }
+  .scene-truck { width: 28%; left: -3%; bottom: 8%; }
+  .scene-mascot, .scene-mascot-left { width: 38%; }
+  .scene-mascot-left { left: 24%; }
+  .scene-mascot { left: 58%; }
   .hero-ticket { left: 20px; right: 20px; bottom: 28px; min-width: 0; }
   .hero-stamp { width: 94px; height: 94px; top: 24px; right: 22px; }
   .hero-stamp strong { font-size: 34px; }
