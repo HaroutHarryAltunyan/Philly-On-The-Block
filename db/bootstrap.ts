@@ -106,6 +106,14 @@ const TABLES: Array<{ name: string; ddl: string }> = [
       created_at INTEGER NOT NULL
     )`,
   },
+  {
+    name: "subscribers",
+    ddl: `CREATE TABLE IF NOT EXISTS subscribers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
+  },
 ];
 
 const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [
@@ -116,6 +124,10 @@ const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [
   {
     name: "drivers_phone_idx",
     ddl: "CREATE UNIQUE INDEX IF NOT EXISTS drivers_phone_idx ON drivers (phone)",
+  },
+  {
+    name: "subscribers_email_idx",
+    ddl: "CREATE UNIQUE INDEX IF NOT EXISTS subscribers_email_idx ON subscribers (email)",
   },
 ];
 

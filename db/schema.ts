@@ -135,3 +135,13 @@ export const drivers = sqliteTable(
   },
   (table) => [uniqueIndex("drivers_phone_idx").on(table.phone)],
 );
+
+export const subscribers = sqliteTable(
+  "subscribers",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    email: text("email").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [uniqueIndex("subscribers_email_idx").on(table.email)],
+);

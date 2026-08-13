@@ -14,6 +14,7 @@ interface Env {
   };
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  META_PIXEL_ID?: string;
   MENU_IMAGES: {
     put(
       key: string,

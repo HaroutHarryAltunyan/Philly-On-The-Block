@@ -971,6 +971,70 @@ footer > p { font-family: Impact, sans-serif; font-size: 20px; text-align: cente
 .footer-links { display: flex; gap: 24px; font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var(--line); color: rgba(24,23,19,.5); font-size: 10px; }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.newsletter {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 30px 0 34px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.newsletter-copy h3 {
+  margin: 0;
+  font-family: Impact, sans-serif;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.newsletter-copy p {
+  margin: 10px 0 0;
+  color: rgba(8, 19, 31, 0.62);
+  font-size: 13px;
+}
+
+.newsletter-form {
+  display: flex;
+  gap: 12px;
+  width: min(440px, 100%);
+}
+
+.newsletter-form input {
+  flex: 1;
+  min-width: 0;
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  padding: 13px 16px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.newsletter-form input::placeholder { color: rgba(8, 19, 31, 0.4); }
+.newsletter-form .button { min-height: 48px; padding: 12px 18px; }
+
+.newsletter-status {
+  margin: 14px 0 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--hot);
+}
+
 .install-app-button {
   border: 2px solid var(--ink);
   border-radius: 999px;
@@ -1069,19 +1133,19 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .hero h1 span { white-space: normal; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 22px; }
   .hero-proof { margin-top: 40px; }
-  .hero-visual { min-height: 480px; }
-  .scene-crosswalk { width: 145%; left: -22%; }
-  .scene-sign { width: 50%; left: 12%; top: 14%; }
-  .scene-truck { width: 34%; left: -2%; bottom: 15%; }
-  .scene-mascot, .scene-mascot-left { width: 38%; }
+  .hero-visual { min-height: 620px; }
+  .scene-crosswalk { width: 160%; left: -30%; bottom: calc(132px); }
+  .scene-sign { width: 52%; left: 10%; top: 10%; }
+  .scene-truck { width: 38%; left: 0%; bottom: calc(132px); }
+  .scene-mascot, .scene-mascot-left { width: 40%; bottom: calc(132px); }
   .scene-mascot-left { left: 24%; }
-  .scene-mascot { left: 58%; }
+  .scene-mascot { left: 55%; }
   .map-pin { left: 28%; bottom: calc(5px + 32.2vw); width: 52px; height: 52px; }
   .map-pin span { font-size: 20px; }
   .road-two { top: 60%; }
   .road-four { top: 53%; }
-  .hero-ticket { left: 20px; right: 20px; bottom: 28px; min-width: 0; }
-  .hero-stamp { width: 94px; height: 94px; top: 24px; right: 22px; }
+  .hero-ticket { left: 0; right: 0; bottom: 0; min-width: 0; height: 132px; justify-content: center; padding: 14px 20px; transform: none; }
+  .hero-stamp { width: 90px; height: 90px; top: 18px; right: 16px; }
   .hero-stamp strong { font-size: 34px; }
   .hero-stamp span { font-size: 7px; }
   .order-section { padding: 75px 16px 90px; }
@@ -1114,8 +1178,8 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .cart-close { display: grid; place-items: center; }
   .cart-backdrop { position: fixed; z-index: 90; inset: 0; display: block; border: 0; background: rgba(24,23,19,.6); }
   .story-section { padding: 75px 20px; }
-  .story-copy { grid-template-columns: 1fr; gap: 40px; padding: 55px 0 65px; }
-  .story-lead { font-size: clamp(4.5rem, 23vw, 7rem); }
+  .story-copy { grid-template-columns: minmax(0, 1fr); gap: 40px; padding: 55px 0 65px; }
+  .story-lead { font-size: clamp(3.8rem, 18vw, 6rem); overflow-wrap: break-word; }
   .story-principles { grid-template-columns: 1fr; }
   .story-principles article, .story-principles article + article { padding: 24px 0; border-left: 0; border-bottom: 1px solid rgba(255,255,255,.35); }
   .visit-section { grid-template-columns: 1fr; }
@@ -1123,9 +1187,12 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .visit-card h2 { font-size: 5rem; }
   .visit-actions { align-items: flex-start; flex-direction: column; }
   .map-card { min-height: 500px; }
-  footer { grid-template-columns: 1fr; padding: 50px 22px 25px; }
+  footer { grid-template-columns: minmax(0, 1fr); padding: 50px 22px 25px; }
+  .newsletter { min-width: 0; }
   footer > p { text-align: left; }
   footer small { grid-column: 1; }
+  .newsletter { flex-direction: column; align-items: flex-start; gap: 20px; }
+  .newsletter-form { width: 100%; }
   .customizer { padding: 30px 22px; }
 }
 

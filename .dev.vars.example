@@ -6,3 +6,7 @@ STRIPE_SECRET_KEY=sk_test_xxx
 # Webhook signing secret from `stripe listen --forward-to localhost:3000/api/stripe/webhook`
 # (run `npx stripe listen` after adding your Stripe secret key)
 STRIPE_WEBHOOK_SECRET=whsec_xxx
+
+# Meta (Instagram / Facebook) Pixel ID — find it in Events Manager > Data Sources
+# https://www.facebook.com/events_manager
+META_PIXEL_ID=

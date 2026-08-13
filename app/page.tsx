@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import InstallAppButton from "./components/install-app-button";
+import { trackAddToCart, trackPurchase } from "../lib/fbq";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
 
@@ -118,7 +119,25 @@ const restaurantSchema = {
   "@context": "https://schema.org",
   "@type": "Restaurant",
   name: "Philly on the Block",
+  description:
+    "Hand-chopped cheesesteaks, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd in Burbank, California. Pickup, delivery, and event catering.",
+  url: "https://philly-on-the-block.altunyanharoutyunh93.chatgpt.site",
+  image: "/og.png",
   telephone: "+1-818-406-6053",
+  servesCuisine: ["American", "Cheesesteaks", "Sandwiches"],
+  priceRange: "$$",
+  currenciesAccepted: "USD",
+  paymentAccepted: "Cash, Credit Card",
+  acceptsReservations: "True",
+  keywords: [
+    "cheesesteaks",
+    "philly cheesesteak",
+    "cheesesteak burbank",
+    "best cheesesteaks in burbank",
+    "food truck burbank",
+    "burbank restaurants",
+    "delivery burbank",
+  ],
   address: {
     "@type": "PostalAddress",
     streetAddress: "2600 W Victory Blvd",
@@ -127,7 +146,42 @@ const restaurantSchema = {
     postalCode: "91505",
     addressCountry: "US",
   },
-  openingHours: ["Tu-Fr 12:00-21:00", "Sa-Su 16:00-23:00"],
+  geo: {
+    "@type": "GeoCoordinates",
+    latitude: 34.1841,
+    longitude: -118.3396,
+  },
+  openingHoursSpecification: [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Tuesday", "Wednesday", "Thursday", "Friday"], opens: "12:00", closes: "21:00" },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Saturday", "Sunday"], opens: "16:00", closes: "23:00" },
+  ],
+  sameAs: ["https://www.yelp.com/menu/philly-on-the-block-burbank"],
+};
+
+const menuSchema = {
+  "@context": "https://schema.org",
+  "@type": "Menu",
+  name: "Philly on the Block Menu",
+  url: "https://philly-on-the-block.altunyanharoutyunh93.chatgpt.site/#menu",
+  hasMenuSection: [
+    {
+      "@type": "MenuSection",
+      name: "Cheesesteaks",
+      hasMenuItem: [
+        { "@type": "MenuItem", name: "Philly OTB", description: "Freshly baked bread, premium meat, grilled onions, spicy pepper, sharp white American, OTB Ranch, and OTB Tang.", offers: { "@type": "Offer", price: "21.99", priceCurrency: "USD" } },
+        { "@type": "MenuItem", name: "Classic Philly", description: "Premium meat topped with grilled onions and sharp white American.", offers: { "@type": "Offer", price: "21.99", priceCurrency: "USD" } },
+        { "@type": "MenuItem", name: "Philly Melt", description: "Choice of meat, grilled onions, and sharp white American in Texas toast.", offers: { "@type": "Offer", price: "15.99", priceCurrency: "USD" } },
+      ],
+    },
+    {
+      "@type": "MenuSection",
+      name: "Sides",
+      hasMenuItem: [
+        { "@type": "MenuItem", name: "Fries", description: "Shoestring fries topped with house seasoning.", offers: { "@type": "Offer", price: "5.50", priceCurrency: "USD" } },
+        { "@type": "MenuItem", name: "OTB Fries", description: "Shoestring fries, steak, grilled onions, sharp white American, OTB Ranch, and OTB Tang.", offers: { "@type": "Offer", price: "20.99", priceCurrency: "USD" } },
+      ],
+    },
+  ],
 };
 
 export default function Home() {
@@ -157,6 +211,9 @@ export default function Home() {
   const quotedAddressRef = useRef("");
   const quoteSeqRef = useRef(0);
   const [deliveryAddress, setDeliveryAddress] = useState({ address: "", address2: "", city: "", state: "", zip: "" });
+  const [subscribeEmail, setSubscribeEmail] = useState("");
+  const [subscribeState, setSubscribeState] = useState<"idle" | "submitting" | "done" | "error">("idle");
+  const [subscribeMessage, setSubscribeMessage] = useState("");
 
   function restoreCanceledCart() {
     try {
@@ -293,6 +350,20 @@ export default function Home() {
           return body.order!;
         })
         .then((order) => {
+          let items: Array<{ itemId: number; quantity: number }> = [];
+          try {
+            items = JSON.parse(sessionStorage.getItem("otb-cart") ?? "[]") as Array<{ itemId: number; quantity: number }>;
+          } catch {
+            // storage is optional
+          }
+          trackPurchase({
+            value: Number((order.totalCents / 100).toFixed(2)),
+            currency: "USD",
+            content_type: "product",
+            content_ids: items.map((item) => String(item.itemId)),
+            num_items: items.reduce((sum, item) => sum + item.quantity, 0),
+            order_number: order.orderNumber,
+          });
           sessionStorage.removeItem("otb-cart");
           setCart([]);
           setFulfillment(order.fulfillment === "delivery" ? "Delivery" : "Pickup");
@@ -358,6 +429,13 @@ export default function Home() {
   }
 
   function addToCart(item: MenuItem, options: string[] = [], optionPrice = 0) {
+    trackAddToCart({
+      content_ids: [String(item.id)],
+      content_type: "product",
+      content_name: item.name,
+      value: item.price + optionPrice,
+      currency: "USD",
+    });
     setCart((current) => [
       ...current,
       {
@@ -448,6 +526,14 @@ export default function Home() {
           return;
         }
         setOrderNumber(body.order?.orderNumber ?? "");
+        trackPurchase({
+          value: Number(total.toFixed(2)),
+          currency: "USD",
+          content_type: "product",
+          content_ids: cart.map((line) => String(line.item.id)),
+          num_items: itemCount,
+          order_number: body.order?.orderNumber ?? "",
+        });
         setCheckoutStep("success");
       })
       .catch((error: unknown) => {
@@ -555,8 +641,33 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryAddress, fulfillment, checkoutStep]);
 
-  function resetOrder() {
-    setCart([]);
+  async function subscribe(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = subscribeEmail.trim();
+    if (!email || subscribeState === "submitting") return;
+    setSubscribeState("submitting");
+    setSubscribeMessage("");
+    fetch("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+      .then(async (response) => {
+        const body = (await response.json()) as { subscribed?: boolean; error?: string };
+        if (!response.ok || !body.subscribed) {
+          throw new Error(body.error ?? "Couldn’t subscribe. Try again.");
+        }
+        setSubscribeState("done");
+        setSubscribeMessage("You’re on the list. See you on the block.");
+        setSubscribeEmail("");
+      })
+      .catch((error: unknown) => {
+        setSubscribeState("error");
+        setSubscribeMessage(error instanceof Error ? error.message : "Couldn’t subscribe. Try again.");
+      });
+  }
+
+  function resetOrder() {    setCart([]);
     setCheckoutStep("cart");
     setCartOpen(false);
     setOrderNumber("");
@@ -572,6 +683,7 @@ export default function Home() {
   return (
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(menuSchema) }} />
       <a className="skip-link" href="#menu">
         Skip to menu
       </a>
@@ -601,14 +713,14 @@ export default function Home() {
 
       <section className="hero" id="top">
         <div className="hero-copy">
-          <div className="eyebrow"><span>Built for the block</span> Burbank, CA</div>
+          <div className="eyebrow"><span>Cheesesteaks · built for the block</span> Burbank, CA</div>
           <h1>
             Built on
             <span>the block.</span>
           </h1>
           <p>
-            Premium meat, freshly baked bread, grilled onions, sharp white American,
-            and the house sauces that make it OTB.
+            Hand-chopped cheesesteaks in Burbank — premium meat, freshly baked bread,
+            grilled onions, sharp white American, and the house sauces that make it OTB.
           </p>
           <div className="hero-actions">
             <a className="button button-primary" href="#menu">Order on the block <b>↘</b></a>
@@ -624,10 +736,10 @@ export default function Home() {
 
         <div className="hero-visual" aria-label="Philly on the Block neighborhood illustration">
           <img className="scene-crosswalk" src="/images/otb-crosswalk.png" alt="" />
-          <img className="scene-truck" src="/images/otb-food-truck.png" alt="Philly on the Block food truck" />
-          <img className="scene-mascot-left" src="/images/otb-mascot-left.png" alt="Philly on the Block founder holding a cheesesteak" />
-          <img className="scene-mascot" src="/images/otb-mascot-right.png" alt="Philly on the Block founder holding a cheesesteak" />
-          <img className="scene-sign" src="/images/otb-street-sign.png" alt="Philly on the Block at Philly 8th Street" />
+          <img className="scene-truck" src="/images/otb-food-truck.png" alt="Philly on the Block cheesesteak food truck in Burbank" />
+          <img className="scene-mascot-left" src="/images/otb-mascot-left.png" alt="Philly on the Block founder holding a Burbank cheesesteak" />
+          <img className="scene-mascot" src="/images/otb-mascot-right.png" alt="Philly on the Block founder holding a Burbank cheesesteak" />
+          <img className="scene-sign" src="/images/otb-street-sign.png" alt="Philly on the Block street sign in Burbank, CA" />
           <div className="hero-stamp" aria-hidden="true">
             <span>Chopped fresh</span>
             <strong>HOT</strong>
@@ -656,7 +768,7 @@ export default function Home() {
             <h2>Choose your damage.</h2>
           </div>
           <p>
-            Current menu and prices from Philly on the Block. <a href="https://www.yelp.com/menu/philly-on-the-block-burbank" target="_blank" rel="noreferrer">View the Yelp menu ↗</a>
+            The Burbank cheesesteak menu and prices from Philly on the Block — order pickup or delivery. <a href="https://www.yelp.com/menu/philly-on-the-block-burbank" target="_blank" rel="noreferrer">View the Yelp menu ↗</a>
           </p>
         </div>
 
@@ -708,7 +820,8 @@ export default function Home() {
                   <img
                     className={`menu-illustration${item.photo ? " menu-photo" : ""}`}
                     src={item.image}
-                    alt={item.photo ? `${item.name} from the Philly on the Block menu` : ""}
+                    alt={item.photo ? `${item.name} from the Philly on the Block menu in Burbank, CA` : ""}
+                    loading="lazy"
                     style={item.imagePosition ? { objectPosition: item.imagePosition } : undefined}
                   />
                   {item.badge && <span className="menu-badge">{item.badge}</span>}
@@ -918,9 +1031,10 @@ export default function Home() {
         <div className="story-copy">
           <p className="story-lead">No shortcuts.<br />No soft opinions.</p>
           <p className="story-body">
-            Philly on the Block keeps the menu focused: cheesesteaks, seasoned fries, and cold Cokes.
+            Philly on the Block keeps the menu focused: Burbank cheesesteaks, seasoned fries, and cold Cokes.
             Freshly baked bread, premium meat, grilled onions, sharp white American, OTB Ranch,
-            and OTB Tang do the heavy lifting.
+            and OTB Tang do the heavy lifting. From the cheesesteak truck at 2600 W Victory Blvd,
+            it’s real Philly flavor on a Burbank block.
           </p>
         </div>
         <div className="story-principles">
@@ -951,7 +1065,7 @@ export default function Home() {
           </div>
         </div>
         <div className="map-card" aria-hidden="true">
-          <img className="visit-truck" src="/images/otb-food-truck.png" alt="" />
+          <img className="visit-truck" src="/images/otb-food-truck.png" alt="" loading="lazy" />
           <span className="map-road road-one">W Victory Blvd</span>
           <span className="map-road road-two">Burbank, CA</span>
           <span className="map-road road-three">91505</span>
@@ -962,6 +1076,35 @@ export default function Home() {
       </section>
 
       <footer>
+        <div className="newsletter">
+          <div className="newsletter-copy">
+            <h3>Get on the list.</h3>
+            <p>Block drops, secret sauces, and first bites — straight to your inbox.</p>
+          </div>
+          <form className="newsletter-form" onSubmit={subscribe}>
+            <label className="sr-only" htmlFor="newsletter-email">Email address</label>
+            <input
+              id="newsletter-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              maxLength={320}
+              value={subscribeEmail}
+              onChange={(event) => {
+                setSubscribeEmail(event.target.value);
+                if (subscribeState === "error" || subscribeState === "done") {
+                  setSubscribeState("idle");
+                  setSubscribeMessage("");
+                }
+              }}
+            />
+            <button className="button button-primary" type="submit" disabled={subscribeState === "submitting"}>
+              {subscribeState === "submitting" ? "Signing up…" : "Subscribe"}
+            </button>
+          </form>
+          {subscribeMessage && <p className="newsletter-status" role="status">{subscribeMessage}</p>}
+        </div>
         <a className="brand footer-brand" href="#top">
           <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
         </a>

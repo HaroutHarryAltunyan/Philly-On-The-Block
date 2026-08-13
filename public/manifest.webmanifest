@@ -1,7 +1,7 @@
 {
   "name": "Philly on the Block",
   "short_name": "Philly OTB",
-  "description": "Cheesesteaks with attitude — order pickup or delivery in Burbank, CA.",
+  "description": "Hand-chopped cheesesteaks in Burbank, CA — order pickup or delivery from Philly on the Block.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
