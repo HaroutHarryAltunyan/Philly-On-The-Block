@@ -946,7 +946,7 @@ a {
 .map-card::before { width: 140%; height: 55px; left: -20%; top: 42%; transform: rotate(-13deg); }
 .map-card::after { width: 55px; height: 130%; left: 54%; top: -15%; transform: rotate(9deg); }
 .map-road { position: absolute; z-index: 2; padding: 4px 8px; color: rgba(8,19,31,.56); background: var(--paper); font-family: ui-monospace, monospace; font-size: 10px; font-weight: 800; text-transform: uppercase; }
-.road-one { left: 15%; top: 38.5%; transform: rotate(-13deg); }
+.road-one { left: 15%; top: 40%; transform: rotate(-13deg); }
 .road-two { right: 8%; top: 52%; transform: rotate(-13deg); }
 .road-three { left: 59%; top: 15%; transform: rotate(9deg); }
 .road-four { left: 46%; top: 60%; transform: rotate(9deg); }
