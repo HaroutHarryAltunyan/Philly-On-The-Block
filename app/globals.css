@@ -1135,7 +1135,7 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .hero-proof { margin-top: 40px; }
   .hero-visual { min-height: 620px; }
   .scene-crosswalk { width: 160%; left: -30%; bottom: calc(132px); }
-  .scene-sign { width: 52%; left: 10%; top: 10%; }
+  .scene-sign { width: 52%; left: 10%; top: 18%; }
   .scene-truck { width: 38%; left: 0%; bottom: calc(132px); }
   .scene-mascot, .scene-mascot-left { width: 40%; bottom: calc(132px); }
   .scene-mascot-left { left: 24%; }
