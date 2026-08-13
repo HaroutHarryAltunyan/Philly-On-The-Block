@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import DriverHeader from "../../components/driver-header";
 import LiveMap, { MapMarker } from "../../components/live-map";
 import { api, ORDER_STATUS_LABELS } from "../../../lib/admin-client";
@@ -280,7 +279,12 @@ export default function DrivingPage() {
         <DriverHeader />
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "3rem 1.25rem", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" }}>
           <div style={{ border: "2px solid #0b0b0d", background: "#f8d7da", borderRadius: 8, padding: "1rem", fontWeight: 600, marginBottom: "1rem" }}>{error}</div>
-          <Link href={driver.authenticated === true ? "/dashboard/drivers" : "/dashboard/orders"} style={{ color: "#3a6ea5" }}>← Back to dashboard</Link>
+          <a
+            href={driver.authenticated === true ? "/dashboard/drivers" : "/dashboard/orders"}
+            style={{ color: "#3a6ea5", fontSize: "0.85rem", textDecoration: "underline" }}
+          >
+            ← Back to dashboard
+          </a>
         </main>
       </>
     );
@@ -292,12 +296,12 @@ export default function DrivingPage() {
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "1.5rem 1.25rem 3rem", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
           <div>
-            <Link
+            <a
               href={driver.authenticated === true ? "/dashboard/drivers" : "/dashboard/orders"}
               style={{ color: "#3a6ea5", fontSize: "0.85rem", textDecoration: "underline" }}
             >
               ← Back to dashboard
-            </Link>
+            </a>
             <h1 style={{ fontSize: "1.6rem", margin: "0.3rem 0 0" }}>
               Delivery GPS — {order?.orderNumber || "Loading..."}
             </h1>

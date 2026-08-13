@@ -1,19 +1,17 @@
 "use client";
 
-import Link from "next/link";
-
 export default function SiteHeader() {
   return (
     <header className="site-header">
-      <Link className="brand" href="/" aria-label="Philly on the Block home">
+      <a className="brand" href="/" aria-label="Philly on the Block home">
         <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
-      </Link>
+      </a>
       <nav className="desktop-nav" aria-label="Main navigation">
-        <Link href="/#menu">Menu</Link>
-        <Link href="/#story">Our story</Link>
-        <Link href="/reserve">Events</Link>
-        <Link href="/track">Track order</Link>
-        <Link href="/#visit">Visit</Link>
+        <a href="/#menu">Menu</a>
+        <a href="/#story">Our story</a>
+        <a href="/reserve">Events</a>
+        <a href="/track">Track order</a>
+        <a href="/#visit">Visit</a>
       </nav>
       <div className="header-actions" aria-hidden="true" />
     </header>

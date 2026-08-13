@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import SiteHeader from "../components/site-header";
 
@@ -133,7 +132,7 @@ export default function ReservePage() {
       <p style={{ color: "#5c6b7a", marginTop: 0 }}>
         Birthdays, corporate lunches, private parties — grab the whole block. Tell us about your event and we’ll
         reach out to confirm availability and details. Hungry sooner?{" "}
-        <Link href="/" style={{ color: "#3a6ea5", fontWeight: 700 }}>Order pickup or delivery instead ↗</Link>
+        <a href="/" style={{ color: "#3a6ea5", fontWeight: 700 }}>Order pickup or delivery instead ↗</a>
       </p>
 
       {error && (
@@ -150,12 +149,12 @@ export default function ReservePage() {
             {reservation.eventType} · {formatted} · up to {reservation.partySize} guests — we’ll be in touch to
             confirm the details.
           </p>
-          <Link
+          <a
             href="/"
             style={{ display: "inline-block", marginTop: "0.5rem", border: "2px solid #0b0b0d", background: "#badaff", color: "#0b0b0d", fontWeight: 800, padding: "0.6rem 1.2rem", borderRadius: 8, textDecoration: "none" }}
           >
             Back to the menu
-          </Link>
+          </a>
         </section>
       ) : (
         <form
