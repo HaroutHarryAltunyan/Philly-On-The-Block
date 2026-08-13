@@ -1,10 +1,12 @@
 "use client";
 
+import InstallAppButton from "./install-app-button";
+
 export default function SiteHeader() {
   return (
     <header className="site-header">
       <a className="brand" href="/" aria-label="Philly on the Block home">
-        <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
+        <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
       </a>
       <nav className="desktop-nav" aria-label="Main navigation">
         <a href="/#menu">Menu</a>
@@ -15,6 +17,7 @@ export default function SiteHeader() {
         <a href="/#visit">Visit</a>
       </nav>
       <div className="header-actions" aria-hidden="true" />
+      <InstallAppButton />
     </header>
   );
 }

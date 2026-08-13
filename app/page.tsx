@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import InstallAppButton from "./components/install-app-button";
 import { trackAddToCart, trackPurchase } from "../lib/fbq";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
@@ -741,7 +740,7 @@ export default function Home() {
 
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Philly on the Block home">
-          <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
+          <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
         </a>
 
         <nav className="desktop-nav" aria-label="Main navigation">
@@ -1218,7 +1217,7 @@ export default function Home() {
           {subscribeMessage && <p className="newsletter-status" role="status">{subscribeMessage}</p>}
         </div>
         <a className="brand footer-brand" href="#top">
-          <img className="brand-logo" src="/images/otb-logo-sign.png" alt="Philly on the Block" />
+          <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
         </a>
         <p>Fresh bread. Big flavor. Block energy.</p>
         <div className="footer-links">
@@ -1230,7 +1229,6 @@ export default function Home() {
           <a href="tel:+18184066053">Call</a>
         </div>
         <small>© 2026 Philly on the Block · 2600 W Victory Blvd, Burbank, CA</small>
-      <InstallAppButton />
       </footer>
 
       {selectedItem && (

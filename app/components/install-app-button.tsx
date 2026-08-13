@@ -17,7 +17,7 @@ export default function InstallAppButton() {
   }
 
   return (
-    <div style={{ textAlign: "center", marginTop: "1.1rem", gridColumn: "1 / -1" }}>
+    <div style={{ textAlign: "center", marginTop: "0.8rem" }}>
       <button
         className="install-app-button"
         type="button"
