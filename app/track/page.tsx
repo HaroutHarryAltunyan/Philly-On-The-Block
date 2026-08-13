@@ -333,7 +333,7 @@ export default function TrackPage() {
             </div>
           )}
 
-          {order.fulfillment === "delivery" && (order.destLat || order.driverLat) && (
+          {order.fulfillment === "delivery" && (
             <DeliveryTrackMap order={order} />
           )}
 
