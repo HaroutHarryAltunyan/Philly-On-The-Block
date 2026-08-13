@@ -1189,6 +1189,7 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .map-card { min-height: 500px; }
   footer { grid-template-columns: minmax(0, 1fr); padding: 50px 22px 25px; }
   .newsletter { min-width: 0; }
+  .footer-links { flex-wrap: wrap; }
   footer > p { text-align: left; }
   footer small { grid-column: 1; }
   .newsletter { flex-direction: column; align-items: flex-start; gap: 20px; }
