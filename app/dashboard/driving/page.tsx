@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import SiteHeader from "../../components/site-header";
+import DriverHeader from "../../components/driver-header";
 import LiveMap, { MapMarker } from "../../components/live-map";
 import { api, ORDER_STATUS_LABELS } from "../../../lib/admin-client";
 import { milesBetween, STORE_LOCATION, geocodeAddress, parseCoordinatePair } from "@/lib/tracking";
@@ -205,7 +205,8 @@ export default function DrivingPage() {
                 }
                 return res
                   .json()
-                  .then((body) => {
+                  .then((rawBody) => {
+                    const body = rawBody as { error?: unknown } | null;
                     const message =
                       body && typeof body.error === "string"
                         ? body.error
@@ -265,7 +266,7 @@ export default function DrivingPage() {
   if (loading) {
     return (
       <>
-        <SiteHeader />
+        <DriverHeader />
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "3rem 1.25rem", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" }}>
           <p>Loading…</p>
         </main>
@@ -276,7 +277,7 @@ export default function DrivingPage() {
   if (error) {
     return (
       <>
-        <SiteHeader />
+        <DriverHeader />
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "3rem 1.25rem", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" }}>
           <div style={{ border: "2px solid #0b0b0d", background: "#f8d7da", borderRadius: 8, padding: "1rem", fontWeight: 600, marginBottom: "1rem" }}>{error}</div>
           <Link href={driver.authenticated === true ? "/dashboard/drivers" : "/dashboard/orders"} style={{ color: "#3a6ea5" }}>← Back to dashboard</Link>
@@ -287,7 +288,7 @@ export default function DrivingPage() {
 
   return (
     <>
-      <SiteHeader />
+      <DriverHeader driverName={driver.authenticated === true ? driver.driver.name : undefined} />
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "1.5rem 1.25rem 3rem", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
           <div>
