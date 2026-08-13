@@ -89,7 +89,7 @@ export default function DrivingPage() {
             setLoading(false);
             return;
           }
-          if (isDriver && isAuthenticatedDriver(driverResult) && found.driverId !== driverResult.driver.id) {
+          if (isDriver && !isAdmin && isAuthenticatedDriver(driverResult) && found.driverId !== driverResult.driver.id) {
             setError("This order is not assigned to you");
             setLoading(false);
             return;
