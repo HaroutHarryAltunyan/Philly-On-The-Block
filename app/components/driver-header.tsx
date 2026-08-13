@@ -25,7 +25,7 @@ export default function DriverHeader({ driverName }: { driverName?: string }) {
       gap: "0.75rem",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        <img src="/images/otb-logo-sign.png" alt="OTB" style={{ height: 32, width: "auto" }} />
+        <img src="/images/Philly_On_The_Block_Logo.png" alt="OTB" style={{ height: 32, width: "auto" }} />
         <span style={{ fontSize: "0.85rem", opacity: 0.85, fontWeight: 600 }}>Rider</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>

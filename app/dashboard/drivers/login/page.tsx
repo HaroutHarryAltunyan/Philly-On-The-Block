@@ -48,7 +48,7 @@ export default function DriverLoginPage() {
         boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
       }}>
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <img src="/images/otb-logo-sign.png" alt="Philly on the Block" style={{ width: 180, height: "auto", marginBottom: "1rem" }} />
+          <img src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" style={{ width: 180, height: "auto", marginBottom: "1rem" }} />
           <h1 style={{ fontSize: "1.3rem", margin: "0.5rem 0 0", color: "#0b0b0d" }}>Rider Login</h1>
           <p style={{ color: "#5c6b7a", fontSize: "0.9rem", margin: "0.5rem 0 0" }}>
             Sign in to start delivering

@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {!isLogin && (
         <aside className="admin-sidebar">
           <div className="admin-brand">
-            <img src="/images/otb-logo-sign.png" alt="Philly on the Block" />
+            <img src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
             <div>
               <strong>Philly on the Block</strong>
               <small>Back of house</small>

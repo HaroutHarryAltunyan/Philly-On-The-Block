@@ -37,7 +37,7 @@ test("server-renders the Philly on the Block homepage shell", async () => {
   assert.match(html, /OTB Ranch/);
   assert.match(html, /OTB Tang/);
   assert.match(html, /Built on\s*<span>the block\.<\/span>/);
-  assert.match(html, /\/images\/otb-logo-sign\.png/);
+  assert.match(html, /\/images\/Philly_On_The_Block_Logo\.png/);
   assert.match(html, /\/manifest\.webmanifest/);
   assert.doesNotMatch(html, /The Blockbuster|Broad Street Heat|Philly Water Ice/);
 });
