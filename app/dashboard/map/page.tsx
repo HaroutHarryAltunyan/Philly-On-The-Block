@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, formatTime } from "../../../lib/admin-client";
 import { STORE_LOCATION, geocodeAddress, parseCoordinatePair } from "../../../lib/tracking";
 import LiveMap, { MapMarker } from "../../components/live-map";
@@ -27,6 +27,8 @@ export default function DeliveryMapPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [error, setError] = useState("");
   const [geocoded, setGeocoded] = useState<Record<number, { latitude: number; longitude: number }>>({});
+  const geocodeAttemptedRef = useRef<Set<number>>(new Set());
+  const geocodeTimersRef = useRef<number[]>([]);
 
   const load = useCallback(() => {
     api<{ orders: Order[] }>("/api/admin/orders")
@@ -49,19 +51,36 @@ export default function DeliveryMapPage() {
   useEffect(() => {
     const missing = orders.filter((o) => {
       const dest = parseCoordinatePair(o.destLat, o.destLng);
-      return !dest && o.address && !geocoded[o.id];
+      return (
+        o.fulfillment === "delivery" &&
+        !dest &&
+        o.address &&
+        !geocoded[o.id] &&
+        !geocodeAttemptedRef.current.has(o.id)
+      );
     });
-    for (const order of missing) {
-      geocodeAddress(order.address).then((coords) => {
-        if (coords) setGeocoded((prev) => ({ ...prev, [order.id]: coords }));
-      });
+    for (const [index, order] of missing.entries()) {
+      geocodeAttemptedRef.current.add(order.id);
+      const timer = window.setTimeout(() => {
+        geocodeAddress(order.address).then((coords) => {
+          if (coords) setGeocoded((prev) => ({ ...prev, [order.id]: coords }));
+        });
+      }, index * 1200);
+      geocodeTimersRef.current.push(timer);
     }
   }, [orders, geocoded]);
+
+  useEffect(() => {
+    return () => {
+      geocodeTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      geocodeTimersRef.current = [];
+    };
+  }, []);
 
   const deliveries = useMemo(
     () =>
       orders.filter(
-        (o) => o.fulfillment === "delivery" && o.driverId && o.status !== "completed" && o.status !== "cancelled",
+        (o) => o.fulfillment === "delivery" && o.status !== "completed" && o.status !== "cancelled",
       ),
     [orders],
   );
@@ -88,7 +107,7 @@ export default function DeliveryMapPage() {
       }
       const driverLat = parseFloat(order.driverLat);
       const driverLng = parseFloat(order.driverLng);
-      if (Number.isFinite(driverLat) && Number.isFinite(driverLng)) {
+      if (order.driverId && Number.isFinite(driverLat) && Number.isFinite(driverLng)) {
         list.push({
           lat: driverLat,
           lng: driverLng,
@@ -121,7 +140,7 @@ export default function DeliveryMapPage() {
 
       <div className="panel">
         <div className="panel-head">
-          <h2>Active deliveries ({deliveries.length})</h2>
+          <h2>Delivery map ({deliveries.length} pending)</h2>
         </div>
         <div className="panel-body" style={{ padding: 0 }}>
           <LiveMap markers={markers} height="520px" />
@@ -131,13 +150,13 @@ export default function DeliveryMapPage() {
       {deliveries.length === 0 ? (
         <div className="panel">
           <div className="panel-body empty-state">
-            No active deliveries right now — the truck is at the store.
+            No pending deliveries right now — new delivery orders will appear here as they come in.
           </div>
         </div>
       ) : (
         <div className="panel">
           <div className="panel-head">
-            <h2>Out for delivery</h2>
+            <h2>Delivery queue</h2>
           </div>
           <div className="panel-body" style={{ padding: 0 }}>
             <table className="admin-table">
@@ -160,7 +179,7 @@ export default function DeliveryMapPage() {
                     <tr key={order.id}>
                       <td><strong>{order.orderNumber}</strong></td>
                       <td>{order.name}</td>
-                      <td>{nameOf(order.driverId)}</td>
+                      <td>{order.driverId ? nameOf(order.driverId) : <span style={{ color: "#8b98a5" }}>Unassigned</span>}</td>
                       <td>
                         <span className={`status-chip status-${order.status}`}>{order.status}</span>
                         {!hasGps && order.status === "delivering" && (

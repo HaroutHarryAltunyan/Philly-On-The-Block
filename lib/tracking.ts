@@ -46,6 +46,7 @@ export async function geocodeAddress(address: string): Promise<{ latitude: numbe
           Accept: "application/json",
           "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery geocoding)",
         },
+        signal: AbortSignal.timeout(8000),
       },
     );
     if (!response.ok) return null;

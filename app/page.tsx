@@ -391,27 +391,8 @@ export default function Home() {
     const zip = String(formData.get("zip") ?? "").trim();
     const address = buildFullAddress(addressLine1, addressLine2, city, state, zip);
     const notes = String(formData.get("notes") ?? "").trim();
-    let destLat = "";
-    let destLng = "";
-
-    if (fulfillment === "Delivery" && addressLine1) {
-      setPlacingOrder(true);
-      try {
-        const geoRes = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${addressLine1}${city ? ', ' + city : ''}${zip ? ', ' + zip : ''}`)}&limit=1`,
-          { headers: { "Accept-Language": "en", "User-Agent": "PhillyOnTheBlock/0.1 (restaurant order geocoding)" } },
-        );
-        if (geoRes.ok) {
-          const geoData = (await geoRes.json()) as Array<{ lat: string; lon: string }>;
-          if (geoData.length > 0) {
-            destLat = geoData[0].lat;
-            destLng = geoData[0].lon;
-          }
-        }
-      } catch {
-        // geocoding failed — proceed without coords, tracking page will show store pin
-      }
-    }
+    const destLat = "";
+    const destLng = "";
 
     setOrderError("");
     setPlacingOrder(true);

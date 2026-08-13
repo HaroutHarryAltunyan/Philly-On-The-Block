@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import SiteHeader from "../components/site-header";
 import LiveMap, { MapMarker } from "../components/live-map";
 import { money, ORDER_STATUS_LABELS } from "../../lib/admin-client";
-import { milesBetween, STORE_LOCATION } from "../../lib/tracking";
+import { milesBetween, STORE_LOCATION, geocodeAddress } from "../../lib/tracking";
 
 type TrackedOrder = {
   id: number;
@@ -35,11 +35,27 @@ const STEPS: Array<TrackedOrder["status"]> = ["new", "preparing", "ready", "deli
 
 function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [geocodedDest, setGeocodedDest] = useState<{ latitude: number; longitude: number } | null>(null);
+  const geocodeAttemptedRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowTick(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Older orders may not have destination coordinates stored. Try once to
+  // geocode the address so the customer still sees where they're getting
+  // delivered, instead of a map with just the store pin.
+  useEffect(() => {
+    if (geocodeAttemptedRef.current) return;
+    if (order.fulfillment !== "delivery" || !order.address) return;
+    const stored = parseFloat(order.destLat);
+    if (Number.isFinite(stored) && stored !== 0) return;
+    geocodeAttemptedRef.current = true;
+    geocodeAddress(order.address).then((coords) => {
+      if (coords) setGeocodedDest(coords);
+    });
+  }, [order]);
 
   const { markers, distanceText, lastUpdated, hasDriver } = useMemo(() => {
     const nextMarkers: MapMarker[] = [
@@ -47,8 +63,12 @@ function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
     ];
     const destLat = parseFloat(order.destLat);
     const destLng = parseFloat(order.destLng);
-    if (Number.isFinite(destLat) && Number.isFinite(destLng)) {
-      nextMarkers.push({ lat: destLat, lng: destLng, kind: "destination", label: order.address || "Delivery address" });
+    const destCoords =
+      Number.isFinite(destLat) && Number.isFinite(destLng)
+        ? { latitude: destLat, longitude: destLng }
+        : geocodedDest;
+    if (destCoords) {
+      nextMarkers.push({ lat: destCoords.latitude, lng: destCoords.longitude, kind: "destination", label: order.address || "Delivery address" });
     }
     const driverLat = parseFloat(order.driverLat);
     const driverLng = parseFloat(order.driverLng);
@@ -57,10 +77,10 @@ function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
     }
     const hasDriver = Number.isFinite(driverLat) && Number.isFinite(driverLng);
     let nextDistanceText = "";
-    if (hasDriver && Number.isFinite(destLat) && Number.isFinite(destLng)) {
+    if (hasDriver && destCoords) {
       const dist = milesBetween(
         { latitude: driverLat, longitude: driverLng },
-        { latitude: destLat, longitude: destLng },
+        { latitude: destCoords.latitude, longitude: destCoords.longitude },
       );
       nextDistanceText = dist < 1
         ? "Your driver is less than 1 mile away"
@@ -82,7 +102,7 @@ function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
       lastUpdated: nextLastUpdated,
       hasDriver,
     };
-  }, [order, nowTick]);
+  }, [order, nowTick, geocodedDest]);
 
   return (
     <div style={{ marginTop: "1.5rem" }}>

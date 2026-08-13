@@ -13,6 +13,7 @@ import {
   validateStock,
 } from "../../../lib/checkout";
 import { computeDeliveryFeeCents } from "../../../lib/delivery-fee";
+import { geocodeAddress } from "../../../lib/tracking";
 
 function buildStripeLineItems(parsed: ParsedOrder) {
   const feesLineCents = parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents;
@@ -87,6 +88,19 @@ export async function POST(request: Request) {
       },
       { fees, coupon },
     );
+
+    // The customer page can't be relied on to geocode (browser rate limits,
+    // ad blockers, etc.). Resolve coordinates server-side so the admin map
+    // and tracking page always have the destination. Best-effort: if this
+    // fails the order still goes through and the client-side fallback
+    // geocodes later.
+    if (isDelivery && parsed.address && (!parsed.destLat || !parsed.destLng)) {
+      const coords = await geocodeAddress(parsed.address).catch(() => null);
+      if (coords) {
+        parsed.destLat = String(coords.latitude);
+        parsed.destLng = String(coords.longitude);
+      }
+    }
 
     const soldOut = await validateStock(db, parsed.lines);
     if (soldOut) {
