@@ -4,7 +4,12 @@ import { ensureBootstrap } from "../../../db/bootstrap";
 import { orders } from "../../../db/schema";
 import { createCheckoutSession, isStripeConfigured } from "../../../lib/payments";
 import { toErrorResponse } from "../../../lib/admin-routes";
-import { OrderValidationError, parseOrderPayload, type ParsedOrder } from "../../../lib/orders";
+import {
+  computeCouponDiscount,
+  OrderValidationError,
+  parseOrderPayload,
+  type ParsedOrder,
+} from "../../../lib/orders";
 import {
   decrementStock,
   findActiveCoupon,
@@ -14,6 +19,7 @@ import {
 } from "../../../lib/checkout";
 import { computeDeliveryFeeCents } from "../../../lib/delivery-fee";
 import { geocodeAddress } from "../../../lib/tracking";
+import { computePointsEarned, getCustomerPoints, maxRedeemable, pointsToCents } from "../../../lib/points";
 
 function buildStripeLineItems(parsed: ParsedOrder) {
   const feesLineCents = parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents;
@@ -80,13 +86,31 @@ export async function POST(request: Request) {
     const isDelivery = payload.fulfillment === "delivery";
     const deliveryQuote = isDelivery ? await computeDeliveryFeeCents(payload.address?.trim() ?? "") : null;
 
+    const lines = repriced.lines;
+    const subtotalCents = lines.reduce(
+      (sum, line) => sum + (line.priceCents + line.optionPriceCents) * line.quantity,
+      0,
+    );
+    const couponDiscountCents = computeCouponDiscount(subtotalCents, coupon);
+
+    let pointsDiscountCents = 0;
+    const requestedPoints = Math.max(Math.round(Number(payload.redeemPoints) || 0), 0);
+    if (requestedPoints > 0) {
+      const points = await getCustomerPoints(db, typeof payload.phone === "string" ? payload.phone : "");
+      const applied = Math.min(
+        requestedPoints,
+        maxRedeemable(points.balance, subtotalCents, couponDiscountCents),
+      );
+      pointsDiscountCents = pointsToCents(applied);
+    }
+
     const parsed = parseOrderPayload(
       {
         ...payload,
         items: repriced.lines,
         deliveryFeeCents: isDelivery ? (deliveryQuote?.feeCents ?? fees.deliveryFeeCents) : undefined,
       },
-      { fees, coupon },
+      { fees, coupon, pointsDiscountCents },
     );
 
     // The customer page can't be relied on to geocode (browser rate limits,
@@ -121,6 +145,7 @@ export async function POST(request: Request) {
         orderNumber: "PTB-000",
         name: parsed.name,
         phone: parsed.phone,
+        phoneKey: parsed.phoneKey,
         address: parsed.address,
         destLat: parsed.destLat,
         destLng: parsed.destLng,
@@ -133,6 +158,8 @@ export async function POST(request: Request) {
         taxCents: parsed.taxCents,
         discountCents: parsed.discountCents,
         couponCode: parsed.couponCode,
+        pointsRedeemed: parsed.pointsRedeemed,
+        pointsDiscountCents: parsed.pointsDiscountCents,
         totalCents: parsed.totalCents,
         status: "new",
         paymentStatus: "unpaid",
@@ -148,7 +175,12 @@ export async function POST(request: Request) {
     if (!isStripeConfigured()) {
       await db
         .update(orders)
-        .set({ paymentStatus: "paid", paymentMethod: "demo", paidAt: new Date() })
+        .set({
+          paymentStatus: "paid",
+          paymentMethod: "demo",
+          paidAt: new Date(),
+          pointsEarned: computePointsEarned(parsed.subtotalCents),
+        })
         .where(eq(orders.id, inserted.id));
       await decrementStock(db, parsed.lines);
 

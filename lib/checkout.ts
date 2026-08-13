@@ -171,7 +171,12 @@ export async function markOrderPaid(
 ): Promise<boolean> {
   const [updated] = await db
     .update(schema.orders)
-    .set({ paymentStatus: "paid", paymentMethod, paidAt: new Date() })
+    .set({
+      paymentStatus: "paid",
+      paymentMethod,
+      paidAt: new Date(),
+      pointsEarned: sql`CAST(${schema.orders.subtotalCents} / 100 AS INTEGER)`,
+    })
     .where(
       sql`${schema.orders.id} = ${orderId} AND ${schema.orders.paymentStatus} != 'paid' AND ${schema.orders.status} != 'cancelled'`,
     )

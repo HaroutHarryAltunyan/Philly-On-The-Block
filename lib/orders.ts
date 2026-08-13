@@ -7,6 +7,8 @@ export type OrderLineInput = {
   options?: string[];
 };
 
+import { normalizePhone } from "./points";
+
 export type OrderLine = {
   id: number | null;
   name: string;
@@ -16,8 +18,7 @@ export type OrderLine = {
   options: string[];
 };
 
-export type OrderFees = {
-  serviceFeeCents: number;
+export type OrderFees = {  serviceFeeCents: number;
   deliveryFeeCents: number;
   taxRatePercent: number;
 };
@@ -31,6 +32,7 @@ export type CouponInfo = {
 export type ParsedOrder = {
   name: string;
   phone: string;
+  phoneKey: string;
   address: string;
   destLat: string;
   destLng: string;
@@ -43,6 +45,8 @@ export type ParsedOrder = {
   deliveryFeeCents: number;
   taxCents: number;
   discountCents: number;
+  pointsRedeemed: number;
+  pointsDiscountCents: number;
   totalCents: number;
 };
 
@@ -73,15 +77,18 @@ export function parseOrderPayload(
     notes?: string;
     couponCode?: string;
     deliveryFeeCents?: number;
+    redeemPoints?: number;
     items?: OrderLineInput[];
   },
   options: {
     fees?: Partial<OrderFees>;
     coupon?: CouponInfo;
+    pointsDiscountCents?: number;
   } = {},
 ): ParsedOrder {
   const name = payload.name?.trim() ?? "";
   const phone = payload.phone?.trim() ?? "";
+  const phoneKey = normalizePhone(phone);
   const address = payload.address?.trim() ?? "";
   const destLat = parseCoordinate(payload.destLat, false);
   const destLng = parseCoordinate(payload.destLng, true);
@@ -128,7 +135,12 @@ export function parseOrderPayload(
     fulfillment === "delivery" && subtotalCents > 0
       ? Math.max(Math.round((payload as { deliveryFeeCents?: number }).deliveryFeeCents ?? fees.deliveryFeeCents), 0)
       : 0;
-  const discountCents = computeCouponDiscount(subtotalCents, coupon);
+  const couponDiscountCents = computeCouponDiscount(subtotalCents, coupon);
+  const pointsDiscountCents = Math.min(
+    Math.max(Math.round(Number(options.pointsDiscountCents) || 0), 0),
+    Math.max(subtotalCents - couponDiscountCents, 0),
+  );
+  const discountCents = couponDiscountCents + pointsDiscountCents;
   const taxableCents = Math.max(subtotalCents - discountCents, 0);
   const taxCents = Math.round((taxableCents * fees.taxRatePercent) / 100);
   const totalCents = taxableCents + serviceFeeCents + deliveryFeeCents + taxCents;
@@ -136,6 +148,7 @@ export function parseOrderPayload(
   return {
     name,
     phone,
+    phoneKey,
     address,
     destLat,
     destLng,
@@ -148,6 +161,8 @@ export function parseOrderPayload(
     deliveryFeeCents,
     taxCents,
     discountCents,
+    pointsRedeemed: pointsDiscountCents,
+    pointsDiscountCents,
     totalCents,
   };
 }

@@ -31,6 +31,9 @@ function toOrderJson(order: {
   driverLat: string;
   driverLng: string;
   driverUpdatedAt: Date | null;
+  pointsEarned: number;
+  pointsRedeemed: number;
+  pointsDiscountCents: number;
 }) {
   return {
     id: order.id,
@@ -46,6 +49,9 @@ function toOrderJson(order: {
     discountCents: order.discountCents,
     couponCode: order.couponCode,
     totalCents: order.totalCents,
+    pointsEarned: order.pointsEarned,
+    pointsRedeemed: order.pointsRedeemed,
+    pointsDiscountCents: order.pointsDiscountCents,
     status: order.status,
     paymentStatus: order.paymentStatus,
     createdAt: order.createdAt,

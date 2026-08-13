@@ -1115,8 +1115,16 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .hero { grid-template-columns: 1fr; }
   .hero-copy { min-height: 640px; padding: 90px 7vw; }
   .hero-copy > p { max-width: 600px; }
-  .hero-visual { min-height: 600px; }
+  .hero-visual { min-height: max(620px, calc(160px + 62vw)); }
   .hero-visual::after { background: linear-gradient(0deg, rgba(24,23,19,.35), transparent 55%); }
+  .scene-crosswalk { width: 160%; left: -30%; bottom: calc(132px); }
+  .scene-sign { width: 52%; left: 10%; top: 18%; }
+  .scene-truck { width: 38%; left: 0%; bottom: calc(132px); }
+  .scene-mascot, .scene-mascot-left { width: 40%; bottom: calc(132px); }
+  .scene-mascot-left { left: 24%; }
+  .scene-mascot { left: 55%; }
+  .hero-ticket { left: 0; right: 0; bottom: 0; min-width: 0; height: 132px; justify-content: center; padding: 14px 20px; transform: none; }
+  .hero-stamp { width: 90px; height: 90px; top: 18px; right: 16px; }
   .order-layout { grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; }
   .menu-grid { grid-template-columns: 1fr; }
 }
@@ -1127,25 +1135,17 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .desktop-nav { font-size: 11.5px; letter-spacing: 0.07em; }
   .desktop-nav a { padding: 8px 0; }
   .cart-button { padding: 8px 9px 8px 14px; }
+  .login-button { padding: 8px 12px; font-size: 12px; }
   .hero { min-height: auto; }
   .hero-copy { min-height: 590px; padding: 70px 22px 55px; }
   .hero h1 { font-size: clamp(4.6rem, 24vw, 7rem); }
   .hero h1 span { white-space: normal; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 22px; }
   .hero-proof { margin-top: 40px; }
-  .hero-visual { min-height: 620px; }
-  .scene-crosswalk { width: 160%; left: -30%; bottom: calc(132px); }
-  .scene-sign { width: 52%; left: 10%; top: 18%; }
-  .scene-truck { width: 38%; left: 0%; bottom: calc(132px); }
-  .scene-mascot, .scene-mascot-left { width: 40%; bottom: calc(132px); }
-  .scene-mascot-left { left: 24%; }
-  .scene-mascot { left: 55%; }
   .map-pin { left: 28%; bottom: calc(5px + 32.2vw); width: 52px; height: 52px; }
   .map-pin span { font-size: 20px; }
   .road-two { top: 60%; }
   .road-four { top: 53%; }
-  .hero-ticket { left: 0; right: 0; bottom: 0; min-width: 0; height: 132px; justify-content: center; padding: 14px 20px; transform: none; }
-  .hero-stamp { width: 90px; height: 90px; top: 18px; right: 16px; }
   .hero-stamp strong { font-size: 34px; }
   .hero-stamp span { font-size: 7px; }
   .order-section { padding: 75px 16px 90px; }
@@ -1297,6 +1297,81 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   color: #ff9d9d;
   font-weight: 700;
 }
+
+/* Rewards points */
+.points-note {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--cream);
+  font: inherit;
+  font-size: 11px;
+}
+.points-redeem {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(186, 218, 255, 0.45);
+  background: rgba(186, 218, 255, 0.08);
+  font: inherit;
+  font-size: 11px;
+}
+.points-redeem .points-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--cream);
+  margin-bottom: 8px;
+}
+.points-redeem .points-row strong { color: #badaff; }
+.points-redeem label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 250, 240, 0.55);
+}
+.points-redeem .points-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.points-redeem .points-input-row input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 10px;
+  color: var(--cream);
+  background: rgba(255, 255, 255, 0.07);
+  outline: none;
+  font: inherit;
+  font-size: 12px;
+}
+.points-redeem .points-input-row input:focus { border-color: var(--mustard); }
+.points-redeem .points-input-row button {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: var(--cream);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.points-redeem small {
+  display: block;
+  color: rgba(255, 250, 240, 0.55);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.points-line { color: #badaff; }
+.points-line strong { color: #badaff; }
+
 
 /* Delivery address fields */
 .delivery-address-fields {

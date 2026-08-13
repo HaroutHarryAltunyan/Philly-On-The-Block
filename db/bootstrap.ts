@@ -38,6 +38,7 @@ const TABLES: Array<{ name: string; ddl: string }> = [
       order_number TEXT NOT NULL,
       name TEXT NOT NULL,
       phone TEXT NOT NULL,
+      phone_key TEXT NOT NULL DEFAULT '',
       address TEXT NOT NULL DEFAULT '',
       fulfillment TEXT NOT NULL,
       items TEXT NOT NULL,
@@ -59,6 +60,9 @@ const TABLES: Array<{ name: string; ddl: string }> = [
       payment_status TEXT NOT NULL DEFAULT 'unpaid',
       payment_method TEXT NOT NULL DEFAULT '',
       stripe_session_id TEXT NOT NULL DEFAULT '',
+      points_earned INTEGER NOT NULL DEFAULT 0,
+      points_redeemed INTEGER NOT NULL DEFAULT 0,
+      points_discount_cents INTEGER NOT NULL DEFAULT 0,
       paid_at INTEGER,
       created_at INTEGER NOT NULL
     )`,
@@ -129,6 +133,10 @@ const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [
     name: "subscribers_email_idx",
     ddl: "CREATE UNIQUE INDEX IF NOT EXISTS subscribers_email_idx ON subscribers (email)",
   },
+  {
+    name: "orders_phone_key_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS orders_phone_key_idx ON orders (phone_key)",
+  },
 ];
 
 const COLUMN_UPGRADES: Array<{ table: string; column: string; ddl: string }> = [
@@ -183,9 +191,29 @@ const COLUMN_UPGRADES: Array<{ table: string; column: string; ddl: string }> = [
     ddl: "ALTER TABLE orders ADD COLUMN driver_lng TEXT NOT NULL DEFAULT ''",
   },
   {
-    table: "orders",
+    name: "orders",
     column: "driver_updated_at",
     ddl: "ALTER TABLE orders ADD COLUMN driver_updated_at INTEGER",
+  },
+  {
+    table: "orders",
+    column: "phone_key",
+    ddl: "ALTER TABLE orders ADD COLUMN phone_key TEXT NOT NULL DEFAULT ''",
+  },
+  {
+    table: "orders",
+    column: "points_earned",
+    ddl: "ALTER TABLE orders ADD COLUMN points_earned INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "orders",
+    column: "points_redeemed",
+    ddl: "ALTER TABLE orders ADD COLUMN points_redeemed INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "orders",
+    column: "points_discount_cents",
+    ddl: "ALTER TABLE orders ADD COLUMN points_discount_cents INTEGER NOT NULL DEFAULT 0",
   },
   {
     table: "reservations",

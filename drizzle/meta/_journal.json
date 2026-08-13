@@ -36,6 +36,13 @@
       "when": 1786525382928,
       "tag": "0004_superb_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1786596776961,
+      "tag": "0005_skinny_jackal",
+      "breakpoints": true
     }
   ]
 }

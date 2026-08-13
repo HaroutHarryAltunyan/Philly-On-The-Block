@@ -199,6 +199,12 @@ export default function Home() {
   const [couponCode, setCouponCode] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponState, setCouponState] = useState<"idle" | "applying" | "applied" | "invalid">("idle");
+  const [checkoutPhone, setCheckoutPhone] = useState("");
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [pointsRedeem, setPointsRedeem] = useState(0);
+  const [pointsLoading, setPointsLoading] = useState(false);
+  const [pointsState, setPointsState] = useState<"idle" | "loaded" | "error">("idle");
+  const pointsFetchSeqRef = useRef(0);
   const [orderNumber, setOrderNumber] = useState("");
   const [orderError, setOrderError] = useState("");
   const [placingOrder, setPlacingOrder] = useState(false);
@@ -404,9 +410,12 @@ export default function Home() {
   const dynamicDeliveryFee = fulfillment === "Delivery" && subtotal > 0 ? deliveryFeeCents / 100 : 0;
   const deliveryFee =
     fulfillment === "Delivery" ? (dynamicDeliveryFee > 0 ? dynamicDeliveryFee : fees.deliveryFeeCents / 100) : 0;
-  const taxable = Math.max(subtotal - couponDiscount, 0);
+  const pointsDiscountCents = Math.min(pointsRedeem, Math.max(Math.round((subtotal - couponDiscount) * 100), 0));
+  const pointsDiscount = pointsDiscountCents / 100;
+  const taxable = Math.max(subtotal - couponDiscount - pointsDiscount, 0);
   const tax = taxable * (fees.taxRatePercent / 100);
   const total = taxable + serviceFee + deliveryFee + tax;
+  const maxRedeemablePoints = Math.min(pointsBalance, Math.max(Math.round((subtotal - couponDiscount) * 100), 0));
 
   const soldOut = (item: MenuItem) => (item.stock ?? null) !== null && (item.stock ?? 0) <= 0;
 
@@ -491,6 +500,7 @@ export default function Home() {
           fulfillment: fulfillment === "Delivery" ? "delivery" : "pickup",
           notes,
           couponCode: couponState === "applied" ? couponCode : "",
+          redeemPoints: pointsRedeem,
           deliveryFeeCents,
           items: cart.map((line) => ({
             id: line.item.id,
@@ -588,6 +598,43 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtotal, cart.length]);
 
+  useEffect(() => {
+    const digits = checkoutPhone.replace(/\D/g, "");
+    if (checkoutStep !== "checkout" || digits.length < 10) {
+      const timer = window.setTimeout(() => {
+        pointsFetchSeqRef.current += 1;
+        setPointsLoading(false);
+        setPointsBalance(0);
+        setPointsState("idle");
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    const seq = ++pointsFetchSeqRef.current;
+    const timer = window.setTimeout(() => {
+      setPointsLoading(true);
+      fetch(`/api/points/balance?phone=${encodeURIComponent(checkoutPhone)}`)
+        .then(async (res) => {
+          const body = (await res.json()) as { balance?: number; error?: string };
+          if (seq !== pointsFetchSeqRef.current) return;
+          if (!res.ok) throw new Error(body.error ?? "Couldn’t load points.");
+          const balance = Math.max(Number(body.balance) || 0, 0);
+          setPointsBalance(balance);
+          setPointsRedeem((current) => Math.min(current, balance));
+          setPointsState("loaded");
+        })
+        .catch(() => {
+          if (seq !== pointsFetchSeqRef.current) return;
+          setPointsState("error");
+          setPointsBalance(0);
+          setPointsRedeem(0);
+        })
+        .finally(() => {
+          if (seq === pointsFetchSeqRef.current) setPointsLoading(false);
+        });
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [checkoutPhone, checkoutStep]);
+
   const calculateDeliveryFee = async (addressLine1: string, addressLine2: string, city: string, state: string, zip: string) => {
     if (!addressLine1 || fulfillment !== "Delivery") {
       setDeliveryFeeCents(0);
@@ -673,6 +720,10 @@ export default function Home() {
     setOrderNumber("");
     setOrderError("");
     removeCoupon();
+    setCheckoutPhone("");
+    setPointsBalance(0);
+    setPointsRedeem(0);
+    setPointsState("idle");
     setDeliveryFeeCents(0);
     setDeliveryDistance(null);
     quotedAddressRef.current = "";
@@ -698,6 +749,7 @@ export default function Home() {
           <a href="#story">Our story</a>
           <a href="/reserve">Events</a>
           <a href="/track">Track order</a>
+          <a href="/portal">Rewards</a>
           <a href="#visit">Visit</a>
         </nav>
 
@@ -705,6 +757,7 @@ export default function Home() {
           <a className={`open-status ${businessStatus.open ? "" : "closed"}`} href="#visit">
             <i /> {businessStatus.label}
           </a>
+          <a className="login-button" href="/portal">Log in</a>
           <button className="cart-button" type="button" onClick={() => setCartOpen(true)}>
             Bag <span>{itemCount}</span>
           </button>
@@ -873,8 +926,61 @@ export default function Home() {
                 </label>
                 <label>
                   Mobile number
-                  <input name="phone" autoComplete="tel" placeholder="(215) 555-0123" required />
+                  <input
+                    name="phone"
+                    autoComplete="tel"
+                    placeholder="(215) 555-0123"
+                    required
+                    value={checkoutPhone}
+                    onChange={(event) => {
+                      setCheckoutPhone(event.target.value);
+                      if (pointsState === "error" || pointsState === "loaded") setPointsState("idle");
+                    }}
+                  />
                 </label>
+                {pointsLoading ? (
+                  <div className="points-note">Checking your points…</div>
+                ) : pointsState === "error" ? (
+                  <div className="points-note">Couldn’t load points for this number.</div>
+                ) : pointsState === "loaded" && pointsBalance > 0 ? (
+                  <div className="points-redeem">
+                    <div className="points-row">
+                      <span>
+                        You have <strong>{pointsBalance.toLocaleString("en-US")} points</strong>
+                      </span>
+                      <strong>≈ {money(pointsBalance / 100)}</strong>
+                    </div>
+                    <label>
+                      Use points (100 = $1)
+                      <div className="points-input-row">
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={maxRedeemablePoints}
+                          step={100}
+                          value={Math.min(pointsRedeem, maxRedeemablePoints)}
+                          placeholder="0"
+                          aria-label="Points to redeem"
+                          onChange={(event) =>
+                            setPointsRedeem(
+                              Math.min(Math.max(Math.round(Number(event.target.value) || 0), 0), maxRedeemablePoints),
+                            )
+                          }
+                        />
+                        {pointsRedeem > 0 && (
+                          <button type="button" onClick={() => setPointsRedeem(0)}>Clear</button>
+                        )}
+                      </div>
+                    </label>
+                    <small>
+                      Up to {maxRedeemablePoints.toLocaleString("en-US")} points ({money(maxRedeemablePoints / 100)}) off
+                      this order.
+                    </small>
+                  </div>
+                ) : pointsState === "loaded" ? (
+                  <div className="points-note">No points yet on this number — order once and start earning.</div>
+                ) : null}
                 {fulfillment === "Delivery" && (
                   <fieldset className="delivery-address-fields">
                     <legend>Delivery address</legend>
@@ -946,6 +1052,9 @@ export default function Home() {
                   {couponState === "applied" && couponDiscount > 0 && (
                     <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(couponDiscount)}</strong></div>
                   )}
+                  {pointsDiscount > 0 && (
+                    <div className="cart-discount points-line"><span>Points (−{pointsDiscountCents} pts)</span><strong>−{money(pointsDiscount)}</strong></div>
+                  )}
                   {deliveryFee > 0 && (
                     <div><span>Delivery fee</span><strong>{money(deliveryFee)}</strong></div>
                   )}
@@ -1001,6 +1110,9 @@ export default function Home() {
                   <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
                   {couponState === "applied" && couponDiscount > 0 && (
                     <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(couponDiscount)}</strong></div>
+                  )}
+                  {pointsDiscount > 0 && (
+                    <div className="cart-discount points-line"><span>Points (−{pointsDiscountCents} pts)</span><strong>−{money(pointsDiscount)}</strong></div>
                   )}
                   {deliveryFee > 0 && (
                     <div><span>Delivery fee</span><strong>{money(deliveryFee)}</strong></div>
@@ -1114,6 +1226,7 @@ export default function Home() {
           <a href="/reserve">Events</a>
           <a href="#visit">Hours</a>
           <a href="/track">Track order</a>
+          <a href="/portal">Rewards</a>
           <a href="tel:+18184066053">Call</a>
         </div>
         <small>© 2026 Philly on the Block · 2600 W Victory Blvd, Burbank, CA</small>

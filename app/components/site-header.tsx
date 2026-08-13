@@ -11,6 +11,7 @@ export default function SiteHeader() {
         <a href="/#story">Our story</a>
         <a href="/reserve">Events</a>
         <a href="/track">Track order</a>
+        <a href="/portal">Rewards</a>
         <a href="/#visit">Visit</a>
       </nav>
       <div className="header-actions" aria-hidden="true" />

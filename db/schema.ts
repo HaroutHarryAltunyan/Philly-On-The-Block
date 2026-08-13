@@ -43,6 +43,7 @@ export const orders = sqliteTable(
     orderNumber: text("order_number").notNull(),
     name: text("name").notNull(),
     phone: text("phone").notNull(),
+    phoneKey: text("phone_key").notNull().default(""),
     address: text("address").notNull().default(""),
     fulfillment: text("fulfillment", { enum: ["pickup", "delivery"] }).notNull(),
     items: text("items").notNull(),
@@ -72,10 +73,17 @@ export const orders = sqliteTable(
       .default("unpaid"),
     paymentMethod: text("payment_method").notNull().default(""),
     stripeSessionId: text("stripe_session_id").notNull().default(""),
+    pointsEarned: integer("points_earned").notNull().default(0),
+    pointsRedeemed: integer("points_redeemed").notNull().default(0),
+    pointsDiscountCents: integer("points_discount_cents").notNull().default(0),
     paidAt: integer("paid_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => [index("orders_status_idx").on(table.status), index("orders_created_at_idx").on(table.createdAt)],
+  (table) => [
+    index("orders_status_idx").on(table.status),
+    index("orders_created_at_idx").on(table.createdAt),
+    index("orders_phone_key_idx").on(table.phoneKey),
+  ],
 );
 
 export const reservations = sqliteTable(
