@@ -951,7 +951,6 @@ export default function Home() {
           </div>
         </div>
         <div className="map-card" aria-hidden="true">
-          <img className="visit-lamp" src="/images/otb-lamp-post.png" alt="" />
           <img className="visit-truck" src="/images/otb-food-truck.png" alt="" />
           <span className="map-road road-one">W Victory Blvd</span>
           <span className="map-road road-two">Burbank, CA</span>
