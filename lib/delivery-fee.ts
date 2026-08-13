@@ -23,13 +23,27 @@ export type DeliveryQuote = {
   feeCents: number;
 };
 
-export async function computeDeliveryFeeCents(
-  address: string,
-): Promise<DeliveryQuote | null> {
-  if (!address.trim()) return null;
+// Nominatim hard-limits to ~1 request/second per client, and all requests
+// egress from the same worker IPs, so typing bursts get rate-limited. Cache
+// successful quotes in memory and retry 429s once so repeat lookups don't
+// fail and wipe the customer's fee off the page.
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 250;
+const quoteCache = new Map<string, { quote: DeliveryQuote; expiresAt: number }>();
 
-  try {
-    const geoRes = await fetch(
+async function fetchGeocode(address: string) {
+  let response = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+    {
+      headers: {
+        "Accept-Language": "en",
+        "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery fee lookup)",
+      },
+    },
+  );
+  if (response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
       {
         headers: {
@@ -38,6 +52,21 @@ export async function computeDeliveryFeeCents(
         },
       },
     );
+  }
+  return response;
+}
+
+export async function computeDeliveryFeeCents(
+  address: string,
+): Promise<DeliveryQuote | null> {
+  const key = address.trim().toLowerCase().replace(/\s+/g, " ");
+  if (!key) return null;
+
+  const cached = quoteCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.quote;
+
+  try {
+    const geoRes = await fetchGeocode(key);
     if (!geoRes.ok) return null;
 
     const geoData = (await geoRes.json()) as Array<{ lat?: string; lon?: string }>;
@@ -51,11 +80,14 @@ export async function computeDeliveryFeeCents(
     );
     // Round up to whole miles for billing
     const billableMiles = Math.max(Math.ceil(miles), 1);
-    return {
+    const quote: DeliveryQuote = {
       miles: Math.round(miles * 10) / 10,
       billableMiles,
       feeCents: billableMiles * CENTS_PER_MILE,
     };
+    if (quoteCache.size >= CACHE_MAX_ENTRIES) quoteCache.clear();
+    quoteCache.set(key, { quote, expiresAt: Date.now() + CACHE_TTL_MS });
+    return quote;
   } catch {
     return null;
   }

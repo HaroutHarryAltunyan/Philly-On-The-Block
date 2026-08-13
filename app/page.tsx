@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import InstallAppButton from "./components/install-app-button";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
@@ -152,6 +152,10 @@ export default function Home() {
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(0);
   const [deliveryDistance, setDeliveryDistance] = useState<number | null>(null);
   const [feeLoading, setFeeLoading] = useState(false);
+  // Address the currently displayed fee was quoted for, and a sequence guard
+  // so an out-of-order response never overwrites a newer quote.
+  const quotedAddressRef = useRef("");
+  const quoteSeqRef = useRef(0);
   const [deliveryAddress, setDeliveryAddress] = useState({ address: "", address2: "", city: "", state: "", zip: "" });
 
   function restoreCanceledCart() {
@@ -502,29 +506,37 @@ export default function Home() {
     if (!addressLine1 || fulfillment !== "Delivery") {
       setDeliveryFeeCents(0);
       setDeliveryDistance(null);
+      quotedAddressRef.current = "";
       return;
     }
 
+    const fullAddress = buildFullAddress(addressLine1, addressLine2, city, state, zip);
+    if (!fullAddress || fullAddress === quotedAddressRef.current) return;
+
+    const seq = ++quoteSeqRef.current;
     setFeeLoading(true);
     try {
       const res = await fetch("/api/delivery-fee", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: buildFullAddress(addressLine1, addressLine2, city, state, zip) }),
+        body: JSON.stringify({ address: fullAddress }),
       });
+      if (seq !== quoteSeqRef.current) return;
       if (!res.ok) {
-        setDeliveryFeeCents(0);
-        setDeliveryDistance(null);
+        // Keep the last successful quote instead of wiping the fee off the
+        // page when a re-check fails (rate limits, network, bad partial
+        // address). The order is re-priced server-side at checkout anyway.
         return;
       }
       const data = (await res.json()) as { feeCents?: number; miles?: number | null };
+      if (seq !== quoteSeqRef.current) return;
+      quotedAddressRef.current = fullAddress;
       setDeliveryFeeCents(data.feeCents ?? 0);
       setDeliveryDistance(data.miles ?? null);
     } catch {
-      setDeliveryFeeCents(0);
-      setDeliveryDistance(null);
+      // Keep the last successful quote (see above).
     } finally {
-      setFeeLoading(false);
+      if (seq === quoteSeqRef.current) setFeeLoading(false);
     }
   };
 
@@ -536,8 +548,9 @@ export default function Home() {
       } else {
         setDeliveryFeeCents(0);
         setDeliveryDistance(null);
+        quotedAddressRef.current = "";
       }
-    }, shouldQuote ? 500 : 0);
+    }, shouldQuote ? 800 : 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryAddress, fulfillment, checkoutStep]);
@@ -551,6 +564,8 @@ export default function Home() {
     removeCoupon();
     setDeliveryFeeCents(0);
     setDeliveryDistance(null);
+    quotedAddressRef.current = "";
+    quoteSeqRef.current = 0;
     setDeliveryAddress({ address: "", address2: "", city: "", state: "", zip: "" });
   }
 

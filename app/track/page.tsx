@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import SiteHeader from "../components/site-header";
 import LiveMap, { MapMarker } from "../components/live-map";
 import { money, ORDER_STATUS_LABELS } from "../../lib/admin-client";
@@ -33,10 +33,15 @@ type TrackedOrder = {
 
 const STEPS: Array<TrackedOrder["status"]> = ["new", "preparing", "ready", "delivering", "completed"];
 
+// Nominatim allows ~1 request/second; back off so retries don't get
+// rate-limited right back into failure.
+const GEOCODE_DELAYS_MS = [0, 30_000, 120_000, 600_000, 1_800_000];
+
 function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [geocodedDest, setGeocodedDest] = useState<{ latitude: number; longitude: number } | null>(null);
-  const geocodeAttemptedRef = useRef(false);
+  const [geocodeAttempt, setGeocodeAttempt] = useState(0);
+  const geocodeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowTick(Date.now()), 30_000);
@@ -46,16 +51,64 @@ function DeliveryTrackMap({ order }: { order: TrackedOrder }) {
   // Older orders may not have destination coordinates stored. Try once to
   // geocode the address so the customer still sees where they're getting
   // delivered, instead of a map with just the store pin.
+  const scheduleGeocode = useCallback((address: string, attempt: number) => {
+    if (geocodeTimerRef.current !== null) return;
+    if (attempt >= GEOCODE_DELAYS_MS.length) return;
+
+    geocodeTimerRef.current = window.setTimeout(() => {
+      geocodeTimerRef.current = null;
+      geocodeAddress(address).then((coords) => {
+        if (coords) {
+          setGeocodedDest(coords);
+          return;
+        }
+        // Bump the attempt counter so the effect below re-runs and schedules
+        // the next retry with a longer backoff delay.
+        setGeocodeAttempt((current) => current + 1);
+      });
+    }, GEOCODE_DELAYS_MS[attempt]);
+  }, []);
+
+  // Reset all geocoding state when a different order is shown.
+  const [currentOrderId, setCurrentOrderId] = useState(order.id);
+  if (currentOrderId !== order.id) {
+    setCurrentOrderId(order.id);
+    setGeocodedDest(null);
+    setGeocodeAttempt(0);
+  }
+
   useEffect(() => {
-    if (geocodeAttemptedRef.current) return;
+    if (geocodeTimerRef.current !== null) {
+      window.clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = null;
+    }
+  }, [currentOrderId]);
+
+  useEffect(() => {
     if (order.fulfillment !== "delivery" || !order.address) return;
     const stored = parseFloat(order.destLat);
     if (Number.isFinite(stored) && stored !== 0) return;
-    geocodeAttemptedRef.current = true;
-    geocodeAddress(order.address).then((coords) => {
-      if (coords) setGeocodedDest(coords);
-    });
-  }, [order]);
+    if (geocodedDest) return;
+    scheduleGeocode(order.address, geocodeAttempt);
+  }, [order, geocodedDest, geocodeAttempt, scheduleGeocode]);
+
+  useEffect(() => {
+    return () => {
+      if (geocodeTimerRef.current !== null) {
+        window.clearTimeout(geocodeTimerRef.current);
+        geocodeTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (geocodeTimerRef.current !== null) {
+        window.clearTimeout(geocodeTimerRef.current);
+        geocodeTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const { markers, distanceText, lastUpdated, hasDriver } = useMemo(() => {
     const nextMarkers: MapMarker[] = [

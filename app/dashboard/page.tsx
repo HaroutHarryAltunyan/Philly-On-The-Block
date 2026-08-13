@@ -14,11 +14,28 @@ import {
 export default function OverviewPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
-    api<{ stats: Stats }>("/api/admin/stats")
-      .then((data) => setStats(data.stats))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"));
+    let cancelled = false;
+    const load = () => {
+      api<{ stats: Stats }>("/api/admin/stats")
+        .then((data) => {
+          if (cancelled) return;
+          setStats(data.stats);
+          setLastUpdated(new Date());
+          setError("");
+        })
+        .catch((err) => {
+          if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load");
+        });
+    };
+    load();
+    const timer = window.setInterval(load, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, []);
 
   return (
@@ -27,7 +44,7 @@ export default function OverviewPage() {
         <div>
           <span className="kicker">Back of house</span>
           <h1>Overview</h1>
-          <p>Today at Philly on the Block.</p>
+          <p>Today at Philly on the Block — refreshes every 10 seconds.</p>
         </div>
         <div className="admin-actions">
           <a className="button secondary" href="/dashboard/orders">
@@ -38,6 +55,12 @@ export default function OverviewPage() {
           </a>
         </div>
       </div>
+
+      {lastUpdated && (
+        <p style={{ color: "#5c6b7a", fontSize: "0.82rem", marginTop: "0.4rem" }}>
+          Updated {lastUpdated.toLocaleTimeString()} · new orders appear here within ~10 seconds
+        </p>
+      )}
 
       {error && <div className="alert error">{error}</div>}
 

@@ -22,18 +22,27 @@ type Order = {
 
 type Driver = { id: number; name: string; status: string };
 
+// Nominatim allows ~1 request/second; back off so retries don't get
+// rate-limited right back into failure.
+const GEOCODE_DELAYS_MS = [0, 30_000, 120_000, 600_000, 1_800_000];
+const MAX_GEOCODE_ATTEMPTS = GEOCODE_DELAYS_MS.length;
+
 export default function DeliveryMapPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [error, setError] = useState("");
   const [geocoded, setGeocoded] = useState<Record<number, { latitude: number; longitude: number }>>({});
-  const geocodeAttemptedRef = useRef<Set<number>>(new Set());
-  const geocodeTimersRef = useRef<number[]>([]);
+  const [geocodeFails, setGeocodeFails] = useState<Record<number, number>>({});
+  const geocodeAttemptsRef = useRef<Map<number, number>>(new Map());
+  const geocodeTimersRef = useRef<Map<number, number>>(new Map());
 
   const load = useCallback(() => {
     api<{ orders: Order[] }>("/api/admin/orders")
       .then((data) => setOrders(data.orders))
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load orders"));
+    api<{ drivers: Driver[] }>("/api/admin/drivers")
+      .then((data) => setDrivers(data.drivers))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -42,38 +51,43 @@ export default function DeliveryMapPage() {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  useEffect(() => {
-    api<{ drivers: Driver[] }>("/api/admin/drivers")
-      .then((data) => setDrivers(data.drivers))
-      .catch(() => {});
+  const scheduleGeocode = useCallback((orderId: number, address: string, force = false) => {
+    if (geocodeTimersRef.current.has(orderId)) return;
+    if (force) geocodeAttemptsRef.current.set(orderId, 0);
+    const attempts = geocodeAttemptsRef.current.get(orderId) ?? 0;
+    if (attempts >= MAX_GEOCODE_ATTEMPTS) return;
+
+    const timer = window.setTimeout(() => {
+      geocodeTimersRef.current.delete(orderId);
+      geocodeAddress(address).then((coords) => {
+        if (coords) {
+          setGeocoded((prev) => ({ ...prev, [orderId]: coords }));
+          return;
+        }
+        // Bump the failure count so the effect below re-runs and schedules
+        // the next attempt with a longer backoff delay.
+        setGeocodeFails((prev) => ({ ...prev, [orderId]: (prev[orderId] ?? 0) + 1 }));
+        geocodeAttemptsRef.current.set(orderId, attempts + 1);
+      });
+    }, GEOCODE_DELAYS_MS[attempts]);
+    geocodeTimersRef.current.set(orderId, timer);
   }, []);
 
   useEffect(() => {
-    const missing = orders.filter((o) => {
-      const dest = parseCoordinatePair(o.destLat, o.destLng);
-      return (
-        o.fulfillment === "delivery" &&
-        !dest &&
-        o.address &&
-        !geocoded[o.id] &&
-        !geocodeAttemptedRef.current.has(o.id)
-      );
-    });
-    for (const [index, order] of missing.entries()) {
-      geocodeAttemptedRef.current.add(order.id);
-      const timer = window.setTimeout(() => {
-        geocodeAddress(order.address).then((coords) => {
-          if (coords) setGeocoded((prev) => ({ ...prev, [order.id]: coords }));
-        });
-      }, index * 1200);
-      geocodeTimersRef.current.push(timer);
+    for (const order of orders) {
+      if (order.fulfillment !== "delivery") continue;
+      if (order.status === "completed" || order.status === "cancelled") continue;
+      if (parseCoordinatePair(order.destLat, order.destLng)) continue;
+      if (!order.address || geocoded[order.id]) continue;
+      scheduleGeocode(order.id, order.address);
     }
-  }, [orders, geocoded]);
+  }, [orders, geocoded, geocodeFails, scheduleGeocode]);
 
   useEffect(() => {
+    const timers = geocodeTimersRef.current;
     return () => {
-      geocodeTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-      geocodeTimersRef.current = [];
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
     };
   }, []);
 
@@ -166,16 +180,16 @@ export default function DeliveryMapPage() {
                   <th>Customer</th>
                   <th>Driver</th>
                   <th>Status</th>
+                  <th>Address on map</th>
                   <th>GPS updated</th>
                 </tr>
               </thead>
               <tbody>
                 {deliveries.map((order) => {
+                  const dest = parseCoordinatePair(order.destLat, order.destLng) ?? geocoded[order.id];
                   const hasGps = Number.isFinite(parseFloat(order.driverLat)) && Number.isFinite(parseFloat(order.driverLng));
-  const nameOf = (id: number | null) =>
-    id ? drivers.find((d) => d.id === id)?.name || `Driver #${id}` : "";
-
-  return (
+                  const failedGeocodes = geocodeFails[order.id] ?? 0;
+                  return (
                     <tr key={order.id}>
                       <td><strong>{order.orderNumber}</strong></td>
                       <td>{order.name}</td>
@@ -185,6 +199,33 @@ export default function DeliveryMapPage() {
                         {!hasGps && order.status === "delivering" && (
                           <span style={{ fontSize: "0.72rem", color: "#5c6b7a", marginLeft: "0.4rem" }}>
                             waiting for GPS…
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {dest ? (
+                          <span style={{ fontSize: "0.78rem", color: "#2e7d32" }}>✓ on map</span>
+                        ) : (
+                          <span style={{ fontSize: "0.78rem", color: "#c62828" }}>
+                            {failedGeocodes > 0 ? "geocoding failed" : "locating…"}
+                            {" "}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setGeocodeFails((prev) => ({ ...prev, [order.id]: 0 }));
+                                scheduleGeocode(order.id, order.address, true);
+                              }}
+                              style={{
+                                border: "1px solid #8b98a5",
+                                background: "#fff",
+                                borderRadius: 6,
+                                padding: "0.1rem 0.5rem",
+                                fontSize: "0.72rem",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Retry
+                            </button>
                           </span>
                         )}
                       </td>

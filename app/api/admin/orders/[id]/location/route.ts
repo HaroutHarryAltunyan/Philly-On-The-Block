@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
@@ -36,32 +36,32 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (!order || order.driverId !== driver.id) {
         return Response.json({ error: "Not authorized" }, { status: 403 });
       }
-      const [updated] = await driverDb
+      // Share this position with every order the driver is carrying so the
+      // admin map (and customer tracking) show one live marker per driver.
+      await driverDb
         .update(orders)
         .set({
           driverLat: String(coords.latitude),
           driverLng: String(coords.longitude),
           driverUpdatedAt: new Date(),
         })
-        .where(eq(orders.id, orderId))
-        .returning();
-      if (!updated) return Response.json({ error: "Order not found" }, { status: 404 });
+        .where(eq(orders.driverId, driver.id));
       return Response.json({ ok: true });
     }
 
-    const [order] = await db
+    const [existing] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!existing) {
+      return Response.json({ error: "Order not found" }, { status: 404 });
+    }
+    const target = existing.driverId != null ? or(eq(orders.id, orderId), eq(orders.driverId, existing.driverId)) : eq(orders.id, orderId);
+    await db
       .update(orders)
       .set({
         driverLat: String(coords.latitude),
         driverLng: String(coords.longitude),
         driverUpdatedAt: new Date(),
       })
-      .where(eq(orders.id, orderId))
-      .returning();
-
-    if (!order) {
-      return Response.json({ error: "Order not found" }, { status: 404 });
-    }
+      .where(and(target));
 
     return Response.json({ ok: true });
   } catch (error) {
