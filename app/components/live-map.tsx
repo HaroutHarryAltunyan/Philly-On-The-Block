@@ -67,29 +67,40 @@ export default function LiveMap({ markers, height = "400px", className = "" }: L
     markersRef.current.clear();
 
     markers.forEach((marker) => {
-      const emoji = marker.kind === "destination" ? "🏠" : marker.kind === "rider" ? "🛵" : "📍";
-      const color = marker.kind === "destination" ? "#e74c3c" : marker.kind === "rider" ? "#3498db" : "#95a5a6";
+      const isStore = marker.kind === "store";
       const isRider = marker.kind === "rider";
-      const size = isRider ? 46 : 36;
+      const isDestination = marker.kind === "destination";
 
-      const icon = L.divIcon({
-        className: "otb-map-marker",
-        html: `<div style="
-          background: ${color};
-          color: white;
-          width: ${size}px;
-          height: ${size}px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: ${isRider ? 24 : 18}px;
-          border: ${isRider ? "3px solid #fff" : "2px solid white"};
-          box-shadow: 0 2px 8px rgba(0,0,0,0.45);
-        ">${emoji}</div>`,
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
-      });
+      const icon = isStore
+        ? L.divIcon({
+            className: "otb-map-marker",
+            html: `<img src="/images/otb-food-truck.png" alt="" style="width:48px;height:36px;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(0,0,0,.45));" />`,
+            iconSize: [48, 36],
+            iconAnchor: [24, 36],
+          })
+        : (() => {
+            const emoji = isDestination ? "🏠" : "🛵";
+            const color = isDestination ? "#e74c3c" : "#3498db";
+            const size = isRider ? 46 : 36;
+            return L.divIcon({
+              className: "otb-map-marker",
+              html: `<div style="
+                background: ${color};
+                color: white;
+                width: ${size}px;
+                height: ${size}px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: ${isRider ? 24 : 18}px;
+                border: ${isRider ? "3px solid #fff" : "2px solid white"};
+                box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+              ">${emoji}</div>`,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+            });
+          })();
 
       const leafletMarker = L.marker([marker.lat, marker.lng], {
         icon,
