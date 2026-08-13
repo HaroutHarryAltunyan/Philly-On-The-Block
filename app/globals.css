@@ -951,8 +951,6 @@ a {
 .road-two { right: 8%; top: 58%; transform: rotate(-13deg); font-size: 14px; }
 .road-three { left: 59%; top: 15%; transform: rotate(9deg); }
 .road-four { left: 46%; top: 60%; transform: rotate(9deg); }
-.map-pin { position: absolute; z-index: 4; left: 46.5%; bottom: 8%; width: 104px; height: 104px; display: grid; place-items: center; border: 4px solid var(--ink); border-radius: 50% 50% 50% 0; background: var(--hot); transform: translate(-50%, -50%) rotate(-45deg); box-shadow: 8px 8px 0 rgba(24,23,19,.25); }
-.map-pin span { color: var(--cream); font-family: Impact, sans-serif; font-size: 28px; transform: rotate(45deg); }
 .map-card > strong { position: absolute; z-index: 4; right: 7%; bottom: 7%; font-family: Impact, sans-serif; font-size: clamp(2rem, 4vw, 4.5rem); line-height: .9; text-align: right; text-transform: uppercase; }
 .visit-truck { position: absolute; z-index: 3; left: 2%; bottom: 4%; width: 44%; height: auto; filter: drop-shadow(8px 10px 0 rgba(8,19,31,.14)); }
 
@@ -1076,8 +1074,6 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .scene-mascot, .scene-mascot-left { width: 38%; }
   .scene-mascot-left { left: 24%; }
   .scene-mascot { left: 58%; }
-  .map-pin { left: 45%; bottom: 8%; width: 72px; height: 72px; }
-  .map-pin span { font-size: 22px; }
   .road-two { top: 60%; }
   .road-four { top: 53%; }
   .hero-ticket { left: 20px; right: 20px; bottom: 28px; min-width: 0; }
