@@ -118,6 +118,14 @@ const TABLES: Array<{ name: string; ddl: string }> = [
       created_at INTEGER NOT NULL
     )`,
   },
+  {
+    name: "rate_limits",
+    ddl: `CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 1,
+      window_start INTEGER NOT NULL
+    )`,
+  },
 ];
 
 const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [
@@ -191,7 +199,7 @@ const COLUMN_UPGRADES: Array<{ table: string; column: string; ddl: string }> = [
     ddl: "ALTER TABLE orders ADD COLUMN driver_lng TEXT NOT NULL DEFAULT ''",
   },
   {
-    name: "orders",
+    table: "orders",
     column: "driver_updated_at",
     ddl: "ALTER TABLE orders ADD COLUMN driver_updated_at INTEGER",
   },

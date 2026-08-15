@@ -17,12 +17,8 @@ export default function InstallAppButton() {
   }
 
   return (
-    <div style={{ textAlign: "center", marginTop: "0.8rem" }}>
-      <button
-        className="install-app-button"
-        type="button"
-        onClick={install}
-      >
+    <span className="install-app">
+      <button className="install-app-button" type="button" onClick={install}>
         Download the app <span>↓</span>
       </button>
       {help && (
@@ -32,6 +28,6 @@ export default function InstallAppButton() {
             : "Open your browser menu (⋮) and choose “Install app” or “Add to Home Screen”."}
         </small>
       )}
-    </div>
+    </span>
   );
 }

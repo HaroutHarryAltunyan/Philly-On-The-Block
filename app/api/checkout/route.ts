@@ -15,6 +15,7 @@ import {
   findActiveCoupon,
   loadOrderFees,
   repriceLines,
+  restoreStock,
   validateStock,
 } from "../../../lib/checkout";
 import { computeDeliveryFeeCents } from "../../../lib/delivery-fee";
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
     const couponDiscountCents = computeCouponDiscount(subtotalCents, coupon);
 
     let pointsDiscountCents = 0;
+    let pointsRedeemedPoints = 0;
     const requestedPoints = Math.max(Math.round(Number(payload.redeemPoints) || 0), 0);
     if (requestedPoints > 0) {
       const points = await getCustomerPoints(db, typeof payload.phone === "string" ? payload.phone : "");
@@ -101,6 +103,7 @@ export async function POST(request: Request) {
         requestedPoints,
         maxRedeemable(points.balance, subtotalCents, couponDiscountCents),
       );
+      pointsRedeemedPoints = applied;
       pointsDiscountCents = pointsToCents(applied);
     }
 
@@ -110,7 +113,7 @@ export async function POST(request: Request) {
         items: repriced.lines,
         deliveryFeeCents: isDelivery ? (deliveryQuote?.feeCents ?? fees.deliveryFeeCents) : undefined,
       },
-      { fees, coupon, pointsDiscountCents },
+      { fees, coupon, pointsDiscountCents, pointsRedeemedPoints },
     );
 
     // The customer page can't be relied on to geocode (browser rate limits,
@@ -173,6 +176,19 @@ export async function POST(request: Request) {
     await db.update(orders).set({ orderNumber }).where(eq(orders.id, inserted.id));
 
     if (!isStripeConfigured()) {
+      const decremented = await decrementStock(db, parsed.lines);
+      if (!decremented) {
+        await restoreStock(db, parsed.lines);
+        await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, inserted.id));
+        return Response.json(
+          {
+            error:
+              "An item in your bag just sold out. Remove it and try again, or check back shortly.",
+          },
+          { status: 409 },
+        );
+      }
+
       await db
         .update(orders)
         .set({
@@ -182,7 +198,6 @@ export async function POST(request: Request) {
           pointsEarned: computePointsEarned(parsed.subtotalCents),
         })
         .where(eq(orders.id, inserted.id));
-      await decrementStock(db, parsed.lines);
 
       return Response.json({
         mode: "demo",

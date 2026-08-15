@@ -153,3 +153,12 @@ export const subscribers = sqliteTable(
   },
   (table) => [uniqueIndex("subscribers_email_idx").on(table.email)],
 );
+
+export const rateLimits = sqliteTable(
+  "rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull().default(1),
+    windowStart: integer("window_start").notNull(),
+  },
+);

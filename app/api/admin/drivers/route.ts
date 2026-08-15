@@ -62,9 +62,7 @@ export async function POST(request: Request) {
     if (detail.includes("UNIQUE constraint failed")) {
       return Response.json({ error: "A driver with that phone already exists" }, { status: 409 });
     }
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to create driver" },
-      { status: 500 },
-    );
+    console.error(error);
+    return Response.json({ error: "Failed to create driver" }, { status: 500 });
   }
 }

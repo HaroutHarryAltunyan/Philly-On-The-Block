@@ -4,6 +4,10 @@ import { ensureBootstrap } from "../../../../db/bootstrap";
 import { orders } from "../../../../db/schema";
 import { toErrorResponse } from "../../../../lib/admin-routes";
 import { getCustomerPoints, phoneKey, pointsToCents } from "../../../../lib/points";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../../../../lib/rate-limit";
+
+const LOOKUP_MAX_PER_WINDOW = 30;
+const LOOKUP_WINDOW_MS = 10 * 60 * 1000;
 
 export async function GET(request: Request) {
   try {
@@ -16,6 +20,11 @@ export async function GET(request: Request) {
 
     const db = getDb();
     await ensureBootstrap(db);
+
+    const limited = await checkRateLimit(db, `points:${clientIp(request)}`, LOOKUP_MAX_PER_WINDOW, LOOKUP_WINDOW_MS);
+    if (!limited.allowed) {
+      return rateLimitResponse(limited) ?? Response.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const key = phoneKey(phone);
     const summary = await getCustomerPoints(db, phone);

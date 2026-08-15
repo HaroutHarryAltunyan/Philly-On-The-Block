@@ -121,7 +121,7 @@ export default function ReserveForm() {
           <span style={{ fontSize: "2rem" }}>✓</span>
           <h2 style={{ margin: "0.5rem 0 0.25rem", fontSize: "1.5rem" }}>Request received, {reservation.name}.</h2>
           <p style={{ color: "#5c6b7a" }}>
-            {reservation.eventType} · {formatted} · up to {reservation.partySize} guests — we'll be in touch to
+            {reservation.eventType} · {formatted} · up to {reservation.partySize} guests — we&apos;ll be in touch to
             confirm the details.
           </p>
           <a

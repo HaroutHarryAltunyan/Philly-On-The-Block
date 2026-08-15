@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { trackAddToCart, trackPurchase } from "../lib/fbq";
+import SiteHeader from "./components/site-header";
+import { getBusinessStatus, formatClock } from "../lib/hours";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
 
@@ -75,43 +77,6 @@ function buildFullAddress(line1: string, line2: string, city: string, state: str
   const region = [city.trim(), state.trim(), zip.trim()].filter(Boolean);
   const address = lines.join(", ");
   return region.length > 0 ? `${address}${address ? ", " : ""}${region.join(" ")}` : address;
-}
-
-type HourSchedule = [number, number] | null;
-
-function getBusinessStatus(hours: Record<string, HourSchedule> | null) {
-  if (!hours) return { open: false, label: "View today’s hours" };
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    weekday: "long",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
-  const day = value("weekday") ?? "Monday";
-  const schedule = hours[day];
-
-  if (!schedule) return { open: false, label: "Closed today" };
-
-  const minutes = Number(value("hour")) * 60 + Number(value("minute"));
-  const [opens, closes] = schedule;
-  if (minutes >= opens && minutes < closes) {
-    return { open: true, label: `Open now · until ${formatClock(closes)}` };
-  }
-
-  return {
-    open: false,
-    label: minutes < opens ? `Opens today · ${formatClock(opens)}` : "Closed for today",
-  };
-}
-
-function formatClock(minutes: number) {
-  const hour = Math.floor(minutes / 60);
-  const minute = minutes % 60;
-  const suffix = hour < 12 ? "AM" : "PM";
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-  return minute === 0 ? `${displayHour} ${suffix}` : `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
 const restaurantSchema = {
@@ -337,6 +302,12 @@ export default function Home() {
 
     if (canceled === "1") {
       queueMicrotask(restoreCanceledCart);
+      window.history.replaceState({}, "", "/");
+      return;
+    }
+
+    if (params.get("cart") === "1") {
+      queueMicrotask(() => setCartOpen(true));
       window.history.replaceState({}, "", "/");
       return;
     }
@@ -738,30 +709,11 @@ export default function Home() {
         Skip to menu
       </a>
 
-      <header className="site-header">
-        <a className="brand" href="#top" aria-label="Philly on the Block home">
-          <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
-        </a>
-
-        <nav className="desktop-nav" aria-label="Main navigation">
-          <a href="#menu">Menu</a>
-          <a href="#story">Our story</a>
-          <a href="/reserve">Events</a>
-          <a href="/track">Track order</a>
-          <a href="/portal">Rewards</a>
-          <a href="#visit">Visit</a>
-        </nav>
-
-        <div className="header-actions">
-          <a className={`open-status ${businessStatus.open ? "" : "closed"}`} href="#visit">
-            <i /> {businessStatus.label}
-          </a>
-          <a className="login-button" href="/portal">Log in</a>
-          <button className="cart-button" type="button" onClick={() => setCartOpen(true)}>
-            Bag <span>{itemCount}</span>
-          </button>
-        </div>
-      </header>
+      <SiteHeader
+        onCartOpen={() => setCartOpen(true)}
+        itemCount={itemCount}
+        businessStatus={businessStatus}
+      />
 
       <section className="hero" id="top">
         <div className="hero-copy">

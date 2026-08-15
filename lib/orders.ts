@@ -84,6 +84,7 @@ export function parseOrderPayload(
     fees?: Partial<OrderFees>;
     coupon?: CouponInfo;
     pointsDiscountCents?: number;
+    pointsRedeemedPoints?: number;
   } = {},
 ): ParsedOrder {
   const name = payload.name?.trim() ?? "";
@@ -140,6 +141,10 @@ export function parseOrderPayload(
     Math.max(Math.round(Number(options.pointsDiscountCents) || 0), 0),
     Math.max(subtotalCents - couponDiscountCents, 0),
   );
+  const pointsRedeemed =
+    options.pointsRedeemedPoints !== undefined
+      ? Math.min(Math.max(Math.round(Number(options.pointsRedeemedPoints) || 0), 0), pointsDiscountCents)
+      : pointsDiscountCents;
   const discountCents = couponDiscountCents + pointsDiscountCents;
   const taxableCents = Math.max(subtotalCents - discountCents, 0);
   const taxCents = Math.round((taxableCents * fees.taxRatePercent) / 100);
@@ -161,7 +166,7 @@ export function parseOrderPayload(
     deliveryFeeCents,
     taxCents,
     discountCents,
-    pointsRedeemed: pointsDiscountCents,
+    pointsRedeemed,
     pointsDiscountCents,
     totalCents,
   };

@@ -1,8 +1,12 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { ensureBootstrap } from "../../../db/bootstrap";
 import { orders } from "../../../db/schema";
 import { toErrorResponse } from "../../../lib/admin-routes";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
+
+const LOOKUP_MAX_PER_WINDOW = 30;
+const LOOKUP_WINDOW_MS = 10 * 60 * 1000;
 
 function normalizePhone(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -75,37 +79,39 @@ export async function GET(request: Request) {
 
     const db = getDb();
     await ensureBootstrap(db);
+
+    const limited = await checkRateLimit(db, `order-status:${clientIp(request)}`, LOOKUP_MAX_PER_WINDOW, LOOKUP_WINDOW_MS);
+    if (!limited.allowed) {
+      return rateLimitResponse(limited) ?? Response.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const phoneKey = normalizePhone(phone);
 
     if (number) {
-      const rows = await db.select().from(orders).where(eq(orders.orderNumber, number));
-      const order = rows.find((row) => normalizePhone(row.phone) === phoneKey);
-      if (!order) {
+      const rows = await db
+        .select()
+        .from(orders)
+        .where(and(eq(orders.orderNumber, number), eq(orders.phoneKey, phoneKey)))
+        .limit(1);
+      if (rows.length === 0) {
         return Response.json({ error: "No order found with that number and phone" }, { status: 404 });
       }
-      return Response.json({ order: toOrderJson(order) });
+      return Response.json({ order: toOrderJson(rows[0]) });
     }
 
     if (!phoneKey) {
       return Response.json({ error: "order number or phone are required" }, { status: 400 });
     }
 
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const recent = await db
       .select()
       .from(orders)
+      .where(and(eq(orders.phoneKey, phoneKey), gte(orders.createdAt, cutoff)))
       .orderBy(desc(orders.createdAt), desc(orders.id))
-      .limit(200);
+      .limit(10);
 
-    const cutoffMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const matching = recent
-      .filter(
-        (row) =>
-          normalizePhone(row.phone) === phoneKey &&
-          new Date(row.createdAt).getTime() >= cutoffMs,
-      )
-      .slice(0, 10);
-
-    return Response.json({ orders: matching.map(toOrderJson) });
+    return Response.json({ orders: recent.map(toOrderJson) });
   } catch (error) {
     return toErrorResponse(error);
   }

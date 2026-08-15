@@ -10,6 +10,9 @@ import tseslint from "typescript-eslint";
 const eslintConfig = defineConfig([
   globalIgnores([
     ".next/**",
+    ".wrangler/**",
+    ".openai/**",
+    ".vinext/**",
     "dist/**",
     "out/**",
     "build/**",
@@ -34,6 +37,15 @@ const eslintConfig = defineConfig([
       react: {
         version: "detect",
       },
+    },
+  },
+  {
+    // This project runs on vinext (a Vite-based Next.js-compatible framework)
+    // and intentionally uses plain <a> anchors for hash navigation (/#menu,
+    // /#story), which next/link does not smooth over. The rule is a false
+    // positive here, so keep anchors but silence the check.
+    rules: {
+      "@next/next/no-html-link-for-pages": "off",
     },
   },
 ]);

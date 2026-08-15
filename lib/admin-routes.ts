@@ -18,16 +18,12 @@ export async function requireAdmin(request: Request): Promise<Db> {
 }
 
 export function toErrorResponse(error: unknown, fallback = "Unexpected error"): Response {
-  const message = error instanceof Error ? error.message : fallback;
-  const detail =
-    error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
-  const combined = `${message}\n${detail}`;
-
   if (
-    combined.includes("no such table") ||
-    combined.includes("no such column") ||
-    combined.includes('from "') ||
-    combined.includes('insert into "')
+    error instanceof Error &&
+    (error.message.includes("no such table") ||
+      error.message.includes("no such column") ||
+      error.message.includes('from "') ||
+      error.message.includes('insert into "'))
   ) {
     return Response.json(
       {
@@ -38,5 +34,6 @@ export function toErrorResponse(error: unknown, fallback = "Unexpected error"): 
     );
   }
 
-  return Response.json({ error: message || fallback }, { status: 500 });
+  console.error(error);
+  return Response.json({ error: fallback }, { status: 500 });
 }

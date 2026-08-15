@@ -71,16 +71,24 @@ export async function validateStock(
   return null;
 }
 
-export async function decrementStock(db: DrizzleD1Database<typeof schema>, lines: OrderLine[]): Promise<void> {
+export async function decrementStock(db: DrizzleD1Database<typeof schema>, lines: OrderLine[]): Promise<boolean> {
+  let allDecremented = true;
   for (const line of lines) {
     if (line.id === null) continue;
-    await db
-      .update(schema.menuItems)
-      .set({
-        stockQty: sql`MAX(${schema.menuItems.stockQty} - ${line.quantity}, 0)`,
-      })
-      .where(sql`${schema.menuItems.id} = ${line.id} AND ${schema.menuItems.stockQty} IS NOT NULL`);
+    // Items without stock tracking (stock_qty IS NULL) are treated as
+    // unlimited; tracked items only decrement while sufficient stock
+    // remains. Single atomic statement, so concurrent checkouts can't
+    // both claim the last unit.
+    const result = await db.run(
+      sql`UPDATE menu_items
+          SET stock_qty = CASE WHEN stock_qty IS NULL THEN NULL ELSE stock_qty - ${line.quantity} END
+          WHERE id = ${line.id} AND (stock_qty IS NULL OR stock_qty >= ${line.quantity})`,
+    );
+    if ((result.meta?.changes ?? 0) !== 1) {
+      allDecremented = false;
+    }
   }
+  return allDecremented;
 }
 
 export async function restoreStock(db: DrizzleD1Database<typeof schema>, lines: OrderLine[]): Promise<void> {
@@ -97,7 +105,10 @@ export async function restoreStock(db: DrizzleD1Database<typeof schema>, lines: 
 export async function repriceLines(
   db: DrizzleD1Database<typeof schema>,
   items: OrderLineInput[],
-): Promise<{ lines: Array<OrderLineInput & { name: string; priceCents: number; optionPriceCents: number }> } | { error: string }> {
+): Promise<
+  | { lines: Array<OrderLineInput & { name: string; priceCents: number; optionPriceCents: number; quantity: number }> }
+  | { error: string }
+> {
   const requestedIds = new Set<number>();
 
   for (const item of items) {
@@ -134,7 +145,7 @@ export async function repriceLines(
     optionsById.set(option.menuItemId, byName);
   }
 
-  const lines: Array<OrderLineInput & { name: string; priceCents: number; optionPriceCents: number }> = [];
+  const lines: Array<OrderLineInput & { name: string; priceCents: number; optionPriceCents: number; quantity: number }> = [];
   for (const item of items) {
     const id = item.id as number;
     const row = itemsById.get(id)!;
@@ -185,6 +196,12 @@ export async function markOrderPaid(
   if (!updated) return false;
 
   const lines = JSON.parse(updated.items) as OrderLine[];
-  await decrementStock(db, lines);
+  const decremented = await decrementStock(db, lines);
+  if (!decremented) {
+    // The item sold out between validation and payment. Revert any lines
+    // that were decremented so the shelf stock stays truthful; the paid
+    // order stays visible for staff to refund manually.
+    await restoreStock(db, lines);
+  }
   return true;
 }

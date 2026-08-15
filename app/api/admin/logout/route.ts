@@ -1,8 +1,8 @@
-import { clearSessionCookieHeader } from "../../../../lib/admin-auth";
+import { clearSessionCookieHeader, requestIsSecure } from "../../../../lib/admin-auth";
 
-export async function POST() {
+export async function POST(request: Request) {
   return Response.json(
     { authenticated: false },
-    { headers: { "Set-Cookie": clearSessionCookieHeader() } },
+    { headers: { "Set-Cookie": clearSessionCookieHeader(requestIsSecure(request)) } },
   );
 }
