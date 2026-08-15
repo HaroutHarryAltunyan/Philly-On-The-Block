@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { trackAddToCart, trackPurchase } from "../lib/fbq";
 import SiteHeader from "./components/site-header";
 import { getBusinessStatus, formatClock } from "../lib/hours";
@@ -184,6 +184,66 @@ export default function Home() {
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeState, setSubscribeState] = useState<"idle" | "submitting" | "done" | "error">("idle");
   const [subscribeMessage, setSubscribeMessage] = useState("");
+  const heroVisualRef = useRef<HTMLDivElement>(null);
+  const crosswalkRef = useRef<HTMLImageElement>(null);
+  const signRef = useRef<HTMLImageElement>(null);
+
+  // Keep the hero street-sign pole standing on the road at any screen ratio.
+  // The crosswalk artwork's road surface (horizon) is measured from the
+  // rendered crosswalk element, then the sign is dropped so its pole base
+  // lands just below that line. If the hero is too short to fit the pole,
+  // the sign scales down instead of floating.
+  useLayoutEffect(() => {
+    const visual = heroVisualRef.current;
+    const cross = crosswalkRef.current;
+    const sign = signRef.current;
+    if (!visual || !cross || !sign) return;
+
+    // Horizon y position (px from the top of the 1800x600 crosswalk art),
+    // sampled every 2.5% across its width.
+    const horizon = [128,122,116,110,104,98,91,85,79,73,67,61,55,48,42,38,45,52,59,65,65,59,52,45,38,42,48,55,60,66,72,78,84,91,96,102,108,114,121,127,130];
+    const crosswalkArtH = 600;
+    // Pole base offset in the 904x1157 street-sign art.
+    const poleBaseFrac = 1120 / 1157;
+    const plant = 8;
+
+    let scale = 1;
+    const alignPole = () => {
+      const vRect = visual.getBoundingClientRect();
+      const cRect = cross.getBoundingClientRect();
+      const sRect = sign.getBoundingClientRect();
+      if (cRect.height === 0 || sRect.width === 0) return;
+
+      const signCx = sRect.left + sRect.width / 2;
+      const xFrac = Math.max(0, Math.min(1, (signCx - cRect.left) / cRect.width));
+      const idx = xFrac * (horizon.length - 1);
+      const i = Math.min(Math.floor(idx), horizon.length - 2);
+      const yFrac = (horizon[i] + (horizon[i + 1] - horizon[i]) * (idx - i)) / crosswalkArtH;
+      const horizonY = cRect.top + yFrac * cRect.height;
+
+      const naturalW = sRect.width / scale;
+      const naturalH = sRect.height / scale;
+      const fitScale = Math.min(1, (horizonY - vRect.top + plant) / (poleBaseFrac * naturalH));
+      scale = fitScale;
+      sign.style.width = fitScale < 1 ? `${naturalW * fitScale}px` : "";
+      const signTop = horizonY - vRect.top + plant - poleBaseFrac * naturalH * fitScale;
+      sign.style.top = `${Math.max(signTop, 0)}px`;
+    };
+
+    alignPole();
+    const align = () => alignPole();
+    window.addEventListener("resize", align);
+    const observer = new ResizeObserver(align);
+    observer.observe(visual);
+    cross.addEventListener("load", align);
+    sign.addEventListener("load", align);
+    return () => {
+      window.removeEventListener("resize", align);
+      observer.disconnect();
+      cross.removeEventListener("load", align);
+      sign.removeEventListener("load", align);
+    };
+  }, []);
 
   function restoreCanceledCart() {
     try {
@@ -738,12 +798,12 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="hero-visual" aria-label="Philly on the Block neighborhood illustration">
-          <img className="scene-crosswalk" src="/images/otb-crosswalk.png" alt="" />
+        <div className="hero-visual" aria-label="Philly on the Block neighborhood illustration" ref={heroVisualRef}>
+          <img className="scene-crosswalk" src="/images/otb-crosswalk.png" alt="" ref={crosswalkRef} />
           <img className="scene-truck" src="/images/otb-food-truck.png" alt="Philly on the Block cheesesteak food truck in Burbank" />
           <img className="scene-mascot-left" src="/images/otb-mascot-left.png" alt="Philly on the Block founder holding a Burbank cheesesteak" />
           <img className="scene-mascot" src="/images/otb-mascot-right.png" alt="Philly on the Block founder holding a Burbank cheesesteak" />
-          <img className="scene-sign" src="/images/otb-street-sign.png" alt="Philly on the Block street sign in Burbank, CA" />
+          <img className="scene-sign" src="/images/otb-street-sign.png" alt="Philly on the Block street sign in Burbank, CA" ref={signRef} />
           <div className="hero-stamp" aria-hidden="true">
             <span>Chopped fresh</span>
             <strong>HOT</strong>
