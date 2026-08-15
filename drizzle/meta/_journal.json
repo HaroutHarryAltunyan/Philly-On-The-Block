@@ -43,6 +43,13 @@
       "when": 1786596776961,
       "tag": "0005_skinny_jackal",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786752988286,
+      "tag": "0006_public_wolverine",
+      "breakpoints": true
     }
   ]
 }
