@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import InstallAppButton from "./install-app-button";
 import { BusinessStatus, getBusinessStatus, HourSchedule } from "../../lib/hours";
 
@@ -76,33 +75,33 @@ export default function SiteHeader({ onCartOpen, itemCount = 0, businessStatus =
 
   return (
     <header className="site-header">
-      <Link className="brand" href="/" aria-label="Philly on the Block home">
+      <a className="brand" href="/" aria-label="Philly on the Block home">
         <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
-      </Link>
+      </a>
 
       <nav className="desktop-nav" aria-label="Main navigation">
         {NAV_LINKS.map((link) => (
-          <Link key={link.href} href={link.href}>
+          <a key={link.href} href={link.href}>
             {link.label}
-          </Link>
+          </a>
         ))}
       </nav>
 
       <div className="header-actions">
-        <Link className={`open-status ${status.open ? "" : "closed"}`} href="/#visit">
+        <a className={`open-status ${status.open ? "" : "closed"}`} href="/#visit">
           <i /> {status.label}
-        </Link>
-        <Link className="login-button" href="/portal">
+        </a>
+        <a className="login-button" href="/portal">
           Log in
-        </Link>
+        </a>
         {onCartOpen ? (
           <button className="cart-button" type="button" onClick={onCartOpen}>
             Bag <span>{itemCount}</span>
           </button>
         ) : (
-          <Link className="cart-button" href="/?cart=1">
+          <a className="cart-button" href="/?cart=1">
             Bag <span>{itemCount}</span>
-          </Link>
+          </a>
         )}
         <InstallAppButton />
       </div>
@@ -122,18 +121,18 @@ export default function SiteHeader({ onCartOpen, itemCount = 0, businessStatus =
       <div className={`mobile-menu ${menuOpen ? "is-open" : ""}`}>
         <nav aria-label="Mobile navigation">
           {NAV_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>
+            <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>
               {link.label}
-            </Link>
+            </a>
           ))}
         </nav>
         <div className="mobile-menu-footer">
-          <Link className={`open-status ${status.open ? "" : "closed"}`} href="/#visit">
+          <a className={`open-status ${status.open ? "" : "closed"}`} href="/#visit">
             <i /> {status.label}
-          </Link>
-          <Link className="login-button" href="/portal">
+          </a>
+          <a className="login-button" href="/portal">
             Log in
-          </Link>
+          </a>
           <InstallAppButton />
         </div>
       </div>

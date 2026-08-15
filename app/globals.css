@@ -1248,8 +1248,9 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .site-header { height: auto; padding: 12px 18px 10px; gap: 12px; }
   .header-actions { gap: 10px; }
   .header-actions .open-status,
-  .header-actions .login-button,
-  .header-actions .install-app { display: none; }
+  .header-actions .login-button { display: none; }
+  .brand-logo { width: 104px; height: 36px; }
+  .install-app-button { font-size: 11px; padding: 8px 13px; }
   .cart-button { padding: 8px 9px 8px 14px; }
   .hero { min-height: auto; }
   .hero-copy { min-height: 590px; padding: 70px 22px 55px; }
@@ -1310,6 +1311,12 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   .newsletter { flex-direction: column; align-items: flex-start; gap: 20px; }
   .newsletter-form { width: 100%; }
   .customizer { padding: 30px 22px; }
+}
+
+@media (max-width: 480px) {
+  .header-actions .install-app { display: none; }
+  .brand-logo { width: 92px; height: 32px; }
+  .header-actions { gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
