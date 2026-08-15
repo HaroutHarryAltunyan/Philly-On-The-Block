@@ -25,14 +25,15 @@ export type DeliveryQuote = {
 
 // Nominatim hard-limits to ~1 request/second per client, and all requests
 // egress from the same worker IPs, so typing bursts get rate-limited. Cache
-// successful quotes in memory and retry 429s once so repeat lookups don't
-// fail and wipe the customer's fee off the page.
+// successful quotes in memory and retry 429s with exponential backoff so repeat
+// lookups don't fail and wipe the customer's fee off the page.
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 250;
 const quoteCache = new Map<string, { quote: DeliveryQuote; expiresAt: number }>();
 
-async function fetchGeocode(address: string) {
-  let response = await fetch(
+async function fetchGeocode(address: string, retryCount: number = 0): Promise<Response> {
+  const maxRetries = 3;
+  const response = await fetch(
     `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
     {
       headers: {
@@ -41,17 +42,10 @@ async function fetchGeocode(address: string) {
       },
     },
   );
-  if (response.status === 429) {
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-    response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-      {
-        headers: {
-          "Accept-Language": "en",
-          "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery fee lookup)",
-        },
-      },
-    );
+  if (response.status === 429 && retryCount < maxRetries) {
+    const delay = Math.min(1000 * 2 ** retryCount, 5000); // Exponential backoff
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return fetchGeocode(address, retryCount + 1);
   }
   return response;
 }
@@ -70,7 +64,7 @@ export async function computeDeliveryFeeCents(
     if (!geoRes.ok) return null;
 
     const geoData = (await geoRes.json()) as Array<{ lat?: string; lon?: string }>;
-    if (!geoData.length || !geoData[0].lat || !geoData[0].lon) return null;
+    if (!geoData.length || !geoData[0]?.lat || !geoData[0]?.lon) return null;
 
     const miles = haversine(
       TRUCK_LAT,

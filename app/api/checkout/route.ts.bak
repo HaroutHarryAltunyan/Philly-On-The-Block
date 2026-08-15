@@ -212,6 +212,7 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin;
+    // unused - kept for debugging/comment only
     const { url, sessionId } = await createCheckoutSession({
       orderId: inserted.id,
       orderNumber,

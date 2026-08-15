@@ -29,7 +29,7 @@ export async function GET() {
         image: item.image,
         imagePosition: item.imagePosition || undefined,
         photo: item.image.includes("/images/menu/") || item.image.includes("/api/menu-image/"),
-        stock: item.stock === null ? null : item.stock <= 0 ? 0 : 1,
+        stock: item.stock === null ? null : Math.max(item.stock, 0),
         options: item.options,
       })),
     });

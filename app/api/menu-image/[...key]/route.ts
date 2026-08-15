@@ -13,7 +13,10 @@ const EXTENSION_TYPES: Record<string, string> = {
 function isSafeKey(segments: string[]) {
   if (segments.length === 0) return false;
   if (segments[0] !== "menu") return false;
-  return segments.every((segment) => /^[a-zA-Z0-9._-]+$/.test(segment));
+  for (const segment of segments) {
+    if (!/^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(segment)) return false;
+  }
+  return true;
 }
 
 type Stored = {

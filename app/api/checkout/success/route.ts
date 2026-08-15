@@ -15,7 +15,10 @@ export async function GET(request: Request) {
     }
 
     const session = await getCheckoutSession(sessionId);
-    const orderId = Number(session.metadata?.orderId);
+    if (!session?.metadata?.orderId) {
+      return Response.json({ error: "Order not found" }, { status: 404 });
+    }
+    const orderId = Number(session.metadata.orderId);
     if (!Number.isInteger(orderId) || orderId <= 0) {
       return Response.json({ error: "Order not found" }, { status: 404 });
     }
@@ -46,7 +49,7 @@ export async function GET(request: Request) {
     return Response.json({
       paid: true,
       order: {
-        id: fresh?.id ?? order.id,
+        id: fresh?.id ?? orderId,
         orderNumber: fresh?.orderNumber ?? order.orderNumber,
         totalCents: fresh?.totalCents ?? order.totalCents,
         fulfillment: fresh?.fulfillment ?? order.fulfillment,

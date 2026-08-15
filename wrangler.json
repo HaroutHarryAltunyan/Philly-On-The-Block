@@ -5,7 +5,8 @@
   "main": "dist/server/index.js",
   "routes": [
     { "pattern": "phillyontheblock.com", "custom_domain": true },
-    { "pattern": "admin.phillyontheblock.com", "custom_domain": true }
+    { "pattern": "admin.phillyontheblock.com", "custom_domain": true },
+    { "pattern": "driver.phillyontheblock.com", "custom_domain": true }
   ],
   "d1_databases": [
     {

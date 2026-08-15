@@ -1,11 +1,9 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
-import { orders } from "@/db/schema";
+import { orders, drivers } from "@/db/schema";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
 import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
-
-const AVAILABLE = or(isNull(orders.driverId), eq(orders.driverId, 0));
 
 export async function POST(request: Request) {
   try {
@@ -21,10 +19,14 @@ export async function POST(request: Request) {
       if (!Number.isInteger(driverId) || driverId <= 0) {
         return Response.json({ error: "driverId required" }, { status: 400 });
       }
+      const [driverExists] = await adminDb.select().from(drivers).where(eq(drivers.id, driverId)).limit(1);
+      if (!driverExists) {
+        return Response.json({ error: "Driver not found" }, { status: 404 });
+      }
       const [updated] = await adminDb
         .update(orders)
         .set({ driverId })
-        .where(and(eq(orders.id, payload.orderId), AVAILABLE))
+        .where(and(eq(orders.id, payload.orderId), eq(orders.status, "new")))
         .returning();
       if (!updated) {
         return Response.json({ error: "Order not available for claiming" }, { status: 409 });
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
     const [updated] = await db
       .update(orders)
       .set({ driverId: driver.id })
-      .where(and(eq(orders.id, payload.orderId), AVAILABLE))
+      .where(and(eq(orders.id, payload.orderId), eq(orders.status, "new")))
       .returning();
 
     if (!updated) {
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
 
     return Response.json({ order: updated });
   } catch (error) {
-    if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
     return toErrorResponse(error);
   }
 }

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const phone = url.searchParams.get("phone")?.trim() ?? "";
 
-    if (!phone) {
+    if (!phone || phone.length > 20) {
       return Response.json({ error: "phone is required" }, { status: 400 });
     }
 
@@ -51,8 +51,6 @@ export async function GET(request: Request) {
     }));
 
     return Response.json({
-      phone: phone,
-      key,
       balance: summary.balance,
       pointsValueCents: pointsToCents(summary.balance),
       lifetimeEarned: summary.lifetimeEarned,

@@ -50,8 +50,11 @@ export default function DrivingPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const watchIdRef = useRef<number | null>(null);
+  const pingTimerRef = useRef<number | null>(null);
+  const hasFixRef = useRef(false);
   const lastPostRef = useRef(0);
   const lastPosRef = useRef({ lat: 0, lng: 0 });
+  const lastPostedRef = useRef({ lat: 0, lng: 0 });
 
   const knownDest = useMemo(
     () => (order ? parseCoordinatePair(order.destLat, order.destLng) : null),
@@ -146,6 +149,11 @@ export default function DrivingPage() {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
+    if (pingTimerRef.current !== null) {
+      window.clearInterval(pingTimerRef.current);
+      pingTimerRef.current = null;
+    }
+    hasFixRef.current = false;
     setSharing(false);
     setCurrentLat(null);
     setCurrentLng(null);
@@ -162,6 +170,50 @@ export default function DrivingPage() {
     }
   }
 
+  function sendPing(lat: number, lng: number) {
+    const now = Date.now();
+    const minTime = 3000;
+    const minDist = 50;
+    const dist = milesBetween(
+      { latitude: lastPostedRef.current.lat, longitude: lastPostedRef.current.lng },
+      { latitude: lat, longitude: lng },
+    ) * 1609.34;
+
+    if (now - lastPostRef.current < minTime && dist < minDist) return;
+
+    lastPostRef.current = now;
+    lastPostedRef.current = { lat, lng };
+    if (!orderId) return;
+    fetch(`/api/admin/orders/${orderId}/location`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude: String(lat), longitude: String(lng) }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          setLastUpdate(new Date().toLocaleTimeString());
+          setGeoError("");
+          return;
+        }
+        return res
+          .json()
+          .then((rawBody) => {
+            const body = rawBody as { error?: unknown } | null;
+            const message =
+              body && typeof body.error === "string"
+                ? body.error
+                : `Location update failed (${res.status})`;
+            setGeoError(`Location sharing issue: ${message}`);
+          })
+          .catch(() => {
+            setGeoError(`Location update failed (${res.status})`);
+          });
+      })
+      .catch(() => {
+        setGeoError("Could not reach the server to share your location. Check your connection.");
+      });
+  }
+
   async function startSharing() {
     if (!navigator.geolocation) {
       setGeoError("Geolocation is not supported by your browser");
@@ -176,66 +228,46 @@ export default function DrivingPage() {
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        hasFixRef.current = true;
+        lastPosRef.current = { lat, lng };
         setCurrentLat(lat);
         setCurrentLng(lng);
-
-        const now = Date.now();
-        const minTime = 3000;
-        const minDist = 50;
-        const dist = milesBetween(
-          { latitude: lastPosRef.current.lat, longitude: lastPosRef.current.lng },
-          { latitude: lat, longitude: lng },
-        ) * 1609.34;
-
-        if (now - lastPostRef.current >= minTime || dist >= minDist) {
-          lastPostRef.current = now;
-          lastPosRef.current = { lat, lng };
-          if (orderId) {
-            fetch(`/api/admin/orders/${orderId}/location`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ latitude: String(lat), longitude: String(lng) }),
-            })
-              .then((res) => {
-                if (res.ok) {
-                  setLastUpdate(new Date().toLocaleTimeString());
-                  setGeoError("");
-                  return;
-                }
-                return res
-                  .json()
-                  .then((rawBody) => {
-                    const body = rawBody as { error?: unknown } | null;
-                    const message =
-                      body && typeof body.error === "string"
-                        ? body.error
-                        : `Location update failed (${res.status})`;
-                    setGeoError(`Location sharing issue: ${message}`);
-                  })
-                  .catch(() => {
-                    setGeoError(`Location update failed (${res.status})`);
-                  });
-              })
-              .catch(() => {
-                setGeoError("Could not reach the server to share your location. Check your connection.");
-              });
-          }
-        }
+        sendPing(lat, lng);
       },
       (err) => {
-        stopSharing();
+        if (err.code === err.PERMISSION_DENIED) {
+          stopSharing();
+          setGeoError(geolocationErrorMessage(err));
+          return;
+        }
+        // Timeout / position unavailable are transient while driving (weak
+        // GPS, tunnels, browser throttling). Keep the watch alive so pings
+        // resume automatically once a fix comes back.
         setGeoError(geolocationErrorMessage(err));
       },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
     );
 
     watchIdRef.current = id;
+
+    // Pings only fire while watchPosition delivers callbacks. Some browsers
+    // throttle those while moving, so also push the latest known fix every
+    // 3 seconds on an interval to keep admin and customer maps live.
+    if (pingTimerRef.current !== null) window.clearInterval(pingTimerRef.current);
+    pingTimerRef.current = window.setInterval(() => {
+      if (!hasFixRef.current) return;
+      const { lat, lng } = lastPosRef.current;
+      sendPing(lat, lng);
+    }, 3000);
   }
 
   useEffect(() => {
     return () => {
       if (watchIdRef.current) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      if (pingTimerRef.current !== null) {
+        window.clearInterval(pingTimerRef.current);
       }
     };
   }, []);
