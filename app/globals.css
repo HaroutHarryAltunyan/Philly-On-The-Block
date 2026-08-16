@@ -1550,6 +1550,43 @@ footer small { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var
   }
 }
 
+/* Payment method selector */
+.payment-method {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  border: 0;
+  padding: 0;
+}
+.payment-method legend {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mustard);
+  margin-bottom: 2px;
+}
+.payment-method .payment-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.payment-method .payment-options button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 11px 12px;
+  color: var(--cream);
+  background: rgba(255, 255, 255, 0.07);
+  outline: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.payment-method .payment-options button.active {
+  border-color: var(--mustard);
+  background: rgba(255, 200, 60, 0.14);
+}
+
 .fee-loading {
   display: block;
   margin-top: 6px;

@@ -4,116 +4,42 @@ import { ensureBootstrap } from "../../../db/bootstrap";
 import { orders } from "../../../db/schema";
 import { createCheckoutSession, isStripeConfigured } from "../../../lib/payments";
 import { toErrorResponse } from "../../../lib/admin-routes";
-import {
-  computeCouponDiscount,
-  OrderValidationError,
-  parseOrderPayload,
-  type ParsedOrder,
-} from "../../../lib/orders";
-import {
-  decrementStock,
-  findActiveCoupon,
-  loadOrderFees,
-  repriceLines,
-  restoreStock,
-  validateStock,
-} from "../../../lib/checkout";
-import { computeDeliveryFeeCents } from "../../../lib/delivery-fee";
+import { buildStripeLineItems, OrderValidationError, parseOrderPayload } from "../../../lib/orders";
+import { computeOrderQuote, decrementStock, restoreStock, validateStock } from "../../../lib/checkout";
 import { geocodeAddress } from "../../../lib/tracking";
-import { computePointsEarned, getCustomerPoints, maxRedeemable, pointsToCents } from "../../../lib/points";
-
-function buildStripeLineItems(parsed: ParsedOrder) {
-  const feesLineCents = parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents;
-  const subtotalCents = parsed.lines.reduce(
-    (sum, line) => sum + (line.priceCents + line.optionPriceCents) * line.quantity,
-    0,
-  );
-  const discountCents = Math.min(parsed.discountCents, subtotalCents);
-
-  const itemLines = parsed.lines.map((line) => ({
-    name: line.options.length > 0 ? `${line.name} (${line.options.join(", ")})` : line.name,
-    unitCents: line.priceCents + line.optionPriceCents,
-    quantity: line.quantity,
-    totalCents: (line.priceCents + line.optionPriceCents) * line.quantity,
-  }));
-
-  // Apply the discount to the fees line first; any remainder is deducted
-  // from the item lines proportionally so the session total always matches
-  // the order total and no line amount ever goes negative. The fees line
-  // itself is added by createCheckoutSession via totalCents.
-  const itemDiscountCents = Math.max(discountCents - feesLineCents, 0);
-  if (itemDiscountCents > 0 && subtotalCents > 0) {
-    let remaining = itemDiscountCents;
-    itemLines.forEach((line, index) => {
-      if (remaining <= 0) return;
-      const isLast = index === itemLines.length - 1;
-      const share = isLast
-        ? Math.min(remaining, line.totalCents)
-        : Math.min(Math.floor((line.totalCents / subtotalCents) * itemDiscountCents), line.totalCents, remaining);
-      line.totalCents -= share;
-      remaining -= share;
-    });
-  }
-
-  return itemLines.map((line) => {
-    // When a line absorbed a discount its total may no longer divide evenly
-    // by its quantity, so bill it as a single unit to keep the cents exact.
-    const discounted = line.totalCents !== line.unitCents * line.quantity;
-    return {
-      name: line.name,
-      quantity: discounted ? 1 : line.quantity,
-      amountCents: discounted ? line.totalCents : line.unitCents,
-    };
-  });
-}
+import { computePointsEarned } from "../../../lib/points";
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as Parameters<typeof parseOrderPayload>[0];
+    const payload = (await request.json()) as Parameters<typeof parseOrderPayload>[0] & {
+      paymentMethod?: string;
+    };
 
     const db = getDb();
     await ensureBootstrap(db);
 
-    const [fees, coupon] = await Promise.all([
-      loadOrderFees(db),
-      findActiveCoupon(db, typeof payload.couponCode === "string" ? payload.couponCode : ""),
-    ]);
-
-    const repriced = await repriceLines(db, payload.items ?? []);
-    if ("error" in repriced) {
-      return Response.json({ error: repriced.error }, { status: 400 });
+    const quote = await computeOrderQuote(db, payload);
+    if ("error" in quote) {
+      return Response.json({ error: quote.error }, { status: 400 });
     }
 
     const isDelivery = payload.fulfillment === "delivery";
-    const deliveryQuote = isDelivery ? await computeDeliveryFeeCents(payload.address?.trim() ?? "") : null;
-
-    const lines = repriced.lines;
-    const subtotalCents = lines.reduce(
-      (sum, line) => sum + (line.priceCents + line.optionPriceCents) * line.quantity,
-      0,
-    );
-    const couponDiscountCents = computeCouponDiscount(subtotalCents, coupon);
-
-    let pointsDiscountCents = 0;
-    let pointsRedeemedPoints = 0;
-    const requestedPoints = Math.max(Math.round(Number(payload.redeemPoints) || 0), 0);
-    if (requestedPoints > 0) {
-      const points = await getCustomerPoints(db, typeof payload.phone === "string" ? payload.phone : "");
-      const applied = Math.min(
-        requestedPoints,
-        maxRedeemable(points.balance, subtotalCents, couponDiscountCents),
-      );
-      pointsRedeemedPoints = applied;
-      pointsDiscountCents = pointsToCents(applied);
-    }
+    // Cash orders are placed unpaid and stay that way until staff (or the
+    // driver) confirms the money was collected in person.
+    const payCash = payload.paymentMethod === "cash";
 
     const parsed = parseOrderPayload(
       {
         ...payload,
-        items: repriced.lines,
-        deliveryFeeCents: isDelivery ? (deliveryQuote?.feeCents ?? fees.deliveryFeeCents) : undefined,
+        items: quote.lines,
+        deliveryFeeCents: quote.deliveryFeeOverrideCents,
       },
-      { fees, coupon, pointsDiscountCents, pointsRedeemedPoints },
+      {
+        fees: quote.fees,
+        coupon: quote.coupon,
+        pointsDiscountCents: quote.pointsDiscountCents,
+        pointsRedeemedPoints: quote.pointsRedeemedPoints,
+      },
     );
 
     // The customer page can't be relied on to geocode (browser rate limits,
@@ -166,7 +92,7 @@ export async function POST(request: Request) {
         totalCents: parsed.totalCents,
         status: "new",
         paymentStatus: "unpaid",
-        paymentMethod: "",
+        paymentMethod: payCash ? "cash" : "",
         stripeSessionId: "",
         createdAt: new Date(),
       })
@@ -174,6 +100,19 @@ export async function POST(request: Request) {
 
     const orderNumber = `PTB-${String(inserted.id).padStart(3, "0")}`;
     await db.update(orders).set({ orderNumber }).where(eq(orders.id, inserted.id));
+
+    if (payCash) {
+      return Response.json({
+        mode: "cash",
+        order: {
+          id: inserted.id,
+          orderNumber,
+          totalCents: parsed.totalCents,
+          fulfillment: parsed.fulfillment,
+          status: "new",
+        },
+      });
+    }
 
     if (!isStripeConfigured()) {
       const decremented = await decrementStock(db, parsed.lines);
@@ -216,7 +155,7 @@ export async function POST(request: Request) {
       orderId: inserted.id,
       orderNumber,
       lines: buildStripeLineItems(parsed),
-      totalCents: parsed.totalCents,
+      feesLineCents: parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents,
       successUrl: `${origin}/?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${origin}/?canceled=1`,
     });

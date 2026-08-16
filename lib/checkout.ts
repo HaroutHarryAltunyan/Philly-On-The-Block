@@ -2,7 +2,10 @@ import { inArray, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { getSetting } from "./admin-auth";
-import type { CouponInfo, OrderFees, OrderLine, OrderLineInput } from "./orders";
+import { computeDeliveryFeeCents } from "./delivery-fee";
+import type { CouponInfo, OrderFees, OrderLine, OrderLineInput, OrderTotals } from "./orders";
+import { computeCouponDiscount, computeOrderTotals } from "./orders";
+import { getCustomerPoints, maxRedeemable, pointsToCents } from "./points";
 
 export async function loadOrderFees(db: DrizzleD1Database<typeof schema>): Promise<OrderFees> {
   const read = async (key: string, fallback: number): Promise<number> => {
@@ -173,6 +176,94 @@ export async function repriceLines(
   }
 
   return { lines };
+}
+
+export type RepricedLine = OrderLineInput & {
+  name: string;
+  priceCents: number;
+  optionPriceCents: number;
+  quantity: number;
+};
+
+export type OrderQuoteInput = {
+  items?: OrderLineInput[];
+  phone?: string;
+  fulfillment?: string;
+  address?: string;
+  couponCode?: string;
+  redeemPoints?: number;
+};
+
+export type OrderQuote = {
+  lines: RepricedLine[];
+  fees: OrderFees;
+  coupon: CouponInfo;
+  subtotalCents: number;
+  couponDiscountCents: number;
+  maxRedeemablePoints: number;
+  pointsRedeemedPoints: number;
+  pointsDiscountCents: number;
+  deliveryFeeOverrideCents?: number;
+  totals: OrderTotals;
+};
+
+// Runs the exact same pricing pipeline as POST /api/checkout (server prices,
+// fees, coupon, delivery quote, points cap) without touching stock or
+// inserting anything. The checkout route and the /api/checkout/quote endpoint
+// both build on this, so a quoted total is always the total that gets charged.
+export async function computeOrderQuote(
+  db: DrizzleD1Database<typeof schema>,
+  input: OrderQuoteInput,
+): Promise<OrderQuote | { error: string }> {
+  const [fees, coupon] = await Promise.all([
+    loadOrderFees(db),
+    findActiveCoupon(db, typeof input.couponCode === "string" ? input.couponCode : ""),
+  ]);
+
+  const repriced = await repriceLines(db, input.items ?? []);
+  if ("error" in repriced) {
+    return { error: repriced.error };
+  }
+
+  const isDelivery = input.fulfillment === "delivery";
+  const deliveryQuote = isDelivery ? await computeDeliveryFeeCents((input.address ?? "").trim()) : null;
+
+  const lines = repriced.lines;
+  const subtotalCents = lines.reduce(
+    (sum, line) => sum + (line.priceCents + line.optionPriceCents) * line.quantity,
+    0,
+  );
+  const couponDiscountCents = computeCouponDiscount(subtotalCents, coupon);
+
+  const points = await getCustomerPoints(db, typeof input.phone === "string" ? input.phone : "");
+  const maxRedeemablePoints = maxRedeemable(points.balance, subtotalCents, couponDiscountCents);
+  const requestedPoints = Math.max(Math.round(Number(input.redeemPoints) || 0), 0);
+  const pointsRedeemedPoints = Math.min(requestedPoints, maxRedeemablePoints);
+  const pointsDiscountCents = pointsToCents(pointsRedeemedPoints);
+
+  const deliveryFeeOverrideCents = isDelivery ? (deliveryQuote?.feeCents ?? fees.deliveryFeeCents) : undefined;
+
+  const totals = computeOrderTotals({
+    lines,
+    fulfillment: isDelivery ? "delivery" : "pickup",
+    fees,
+    coupon,
+    pointsDiscountCents,
+    deliveryFeeOverrideCents,
+  });
+
+  return {
+    lines,
+    fees,
+    coupon,
+    subtotalCents,
+    couponDiscountCents,
+    maxRedeemablePoints,
+    pointsRedeemedPoints,
+    pointsDiscountCents,
+    deliveryFeeOverrideCents,
+    totals,
+  };
 }
 
 export async function markOrderPaid(

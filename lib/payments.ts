@@ -15,7 +15,10 @@ export async function createCheckoutSession(params: {
   orderId: number;
   orderNumber: string;
   lines: Array<{ name: string; quantity: number; amountCents: number }>;
-  totalCents: number;
+  // Service fee + delivery fee + tax only. The item lines already carry the
+  // (discounted) food total, so session total = items + feesLineCents must
+  // equal the stored order total exactly.
+  feesLineCents: number;
   customerEmail?: string;
   successUrl: string;
   cancelUrl: string;
@@ -23,27 +26,29 @@ export async function createCheckoutSession(params: {
   const stripe = getStripe();
   if (!stripe) throw new Error("Stripe is not configured");
 
+  const lineItems = params.lines.map((line) => ({
+    quantity: line.quantity,
+    price_data: {
+      currency: "usd",
+      unit_amount: line.amountCents,
+      product_data: { name: line.name },
+    },
+  }));
+  if (params.feesLineCents > 0) {
+    lineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: "usd",
+        unit_amount: params.feesLineCents,
+        product_data: { name: `Philly on the Block order ${params.orderNumber} (tax + service)` },
+      },
+    });
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: params.customerEmail || undefined,
-    line_items: [
-      ...params.lines.map((line) => ({
-        quantity: line.quantity,
-        price_data: {
-          currency: "usd",
-          unit_amount: line.amountCents,
-          product_data: { name: line.name },
-        },
-      })),
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: params.totalCents,
-          product_data: { name: `Philly on the Block order ${params.orderNumber} (tax + service)` },
-        },
-      },
-    ],
+    line_items: lineItems,
     metadata: { orderId: String(params.orderId), orderNumber: params.orderNumber },
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,

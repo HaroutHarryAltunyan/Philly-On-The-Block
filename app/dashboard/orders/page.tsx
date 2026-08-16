@@ -192,6 +192,23 @@ export default function OrdersPage() {
     }
   }
 
+  async function markCashPaid(order: Order) {
+    setBusy(order.id);
+    setError("");
+    try {
+      const result = await api<{ order: Order }>(`/api/admin/orders/${order.id}/pay`, {
+        method: "POST",
+        body: JSON.stringify({ method: "cash" }),
+      });
+      setOrders((current) => current.map((o) => (o.id === order.id ? result.order : o)));
+      setSelected((current) => (current?.id === order.id ? result.order : current));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to mark order paid");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function askDelete(order: Order) {
     if (confirmingDelete === order.id) {
       removeOrder(order);
@@ -316,6 +333,8 @@ export default function OrdersPage() {
                         <span className="status-chip status-ready">{PAYMENT_LABELS[order.paymentStatus]}</span>
                       ) : order.paymentStatus === "refunded" ? (
                         <span className="status-chip status-cancelled">{PAYMENT_LABELS[order.paymentStatus]}</span>
+                      ) : order.paymentMethod === "cash" ? (
+                        <span className="status-chip status-new">Cash due</span>
                       ) : (
                         <span className="status-chip status-new">{PAYMENT_LABELS[order.paymentStatus]}</span>
                       )}
@@ -346,6 +365,11 @@ export default function OrdersPage() {
                         {NEXT_STATUS[order.status] && (
                           <button type="button" disabled={busy === order.id} onClick={() => setStatus(order, NEXT_STATUS[order.status]!)}>
                             Mark {ORDER_STATUS_LABELS[NEXT_STATUS[order.status]!]}
+                          </button>
+                        )}
+                        {order.paymentStatus === "unpaid" && order.paymentMethod === "cash" && order.status !== "cancelled" && (
+                          <button type="button" disabled={busy === order.id} onClick={() => markCashPaid(order)}>
+                            Mark paid (cash)
                           </button>
                         )}
                         {order.status !== "completed" && order.status !== "cancelled" && (
@@ -425,8 +449,10 @@ export default function OrdersPage() {
                   <div className="stat-value" style={{ fontSize: "1.1rem", marginTop: "0.5rem" }}>
                     {selected.paymentStatus === "paid" ? (
                       <span className="status-chip status-ready">
-                        {selected.paymentMethod === "demo" ? "Demo" : "Paid"}
+                        {selected.paymentMethod === "demo" ? "Demo" : selected.paymentMethod === "cash" ? "Paid · Cash" : "Paid"}
                       </span>
+                    ) : selected.paymentMethod === "cash" ? (
+                      <span className="status-chip status-new">Cash due</span>
                     ) : (
                       <span className="status-chip status-new">Unpaid</span>
                     )}
@@ -439,7 +465,7 @@ export default function OrdersPage() {
                   <tr><td style={{ width: 140 }}><strong>Customer</strong></td><td>{selected.name} · {selected.phone}</td></tr>
                   <tr><td><strong>Type</strong></td><td>{selected.fulfillment === "delivery" ? `Delivery — ${selected.address}` : "Pickup"}</td></tr>
                   <tr><td><strong>Placed</strong></td><td>{formatTime(selected.createdAt)}</td></tr>
-                  <tr><td><strong>Payment method</strong></td><td>{selected.paymentMethod === "demo" ? "Demo (no charge)" : (selected.paymentMethod || "—")}</td></tr>
+                  <tr><td><strong>Payment method</strong></td><td>{selected.paymentMethod === "demo" ? "Demo (no charge)" : selected.paymentMethod === "cash" ? "Cash in person" : (selected.paymentMethod || "—")}</td></tr>
                   {selected.notes && (
                     <tr><td><strong>Notes</strong></td><td>{selected.notes}</td></tr>
                   )}
@@ -575,6 +601,11 @@ export default function OrdersPage() {
                 {NEXT_STATUS[selected.status] && (
                   <button className="button primary-blue" type="button" disabled={busy === selected.id} onClick={() => setStatus(selected, NEXT_STATUS[selected.status]!)}>
                     Mark {ORDER_STATUS_LABELS[NEXT_STATUS[selected.status]!]}
+                  </button>
+                )}
+                {selected.paymentStatus === "unpaid" && selected.paymentMethod === "cash" && selected.status !== "cancelled" && (
+                  <button className="button primary-blue" type="button" disabled={busy === selected.id} onClick={() => markCashPaid(selected)}>
+                    Mark paid (cash)
                   </button>
                 )}
                 {selected.status !== "completed" && selected.status !== "cancelled" && (

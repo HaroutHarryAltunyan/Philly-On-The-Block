@@ -148,6 +148,17 @@ const menuSchema = {
   ],
 };
 
+type CheckoutQuote = {
+  subtotalCents: number;
+  serviceFeeCents: number;
+  deliveryFeeCents: number;
+  taxCents: number;
+  couponDiscountCents: number;
+  pointsDiscountCents: number;
+  totalCents: number;
+  maxRedeemablePoints: number;
+};
+
 export default function Home() {
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [fulfillment, setFulfillment] = useState<"Pickup" | "Delivery">("Pickup");
@@ -156,6 +167,9 @@ export default function Home() {
   const [selectedOptions, setSelectedOptions] = useState<Record<number, boolean>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "checkout" | "success">("cart");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
+  const [cashTotal, setCashTotal] = useState<number | null>(null);
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
   const [businessStatus, setBusinessStatus] = useState({ open: false, label: "View today’s hours" });
   const [liveMenu, setLiveMenu] = useState<MenuItem[] | null>(null);
   const [liveHours, setLiveHours] = useState<Record<string, [number, number] | null> | null>(null);
@@ -447,6 +461,18 @@ export default function Home() {
   const total = taxable + serviceFee + deliveryFee + tax;
   const maxRedeemablePoints = Math.min(pointsBalance, Math.max(Math.round((subtotal - couponDiscount) * 100), 0));
 
+  // The server quote is authoritative: it runs the exact same pricing code as
+  // checkout, so what's displayed here is exactly what Stripe charges. The
+  // local math above only fills in before the first quote resolves.
+  const displaySubtotal = quote ? quote.subtotalCents / 100 : subtotal;
+  const displayCouponDiscount = quote ? quote.couponDiscountCents / 100 : couponDiscount;
+  const displayPointsRedeemed = quote ? quote.pointsDiscountCents : pointsDiscountCents;
+  const displayPointsDiscount = displayPointsRedeemed / 100;
+  const displayDeliveryFee = quote ? quote.deliveryFeeCents / 100 : deliveryFee;
+  const displayTaxService = quote ? (quote.taxCents + quote.serviceFeeCents) / 100 : serviceFee + tax;
+  const displayTotal = quote ? quote.totalCents / 100 : total;
+  const effectiveMaxRedeemable = quote ? quote.maxRedeemablePoints : maxRedeemablePoints;
+
   const soldOut = (item: MenuItem) => (item.stock ?? null) !== null && (item.stock ?? 0) <= 0;
 
   const cartWarnings: Record<string, "removed" | "soldout"> = {};
@@ -528,6 +554,7 @@ export default function Home() {
           destLat,
           destLng,
           fulfillment: fulfillment === "Delivery" ? "delivery" : "pickup",
+          paymentMethod,
           notes,
           couponCode: couponState === "applied" ? couponCode : "",
           redeemPoints: pointsRedeem,
@@ -544,9 +571,9 @@ export default function Home() {
       })
       .then(async (response) => {
         const body = (await response.json()) as {
-          mode?: "stripe" | "demo";
+          mode?: "stripe" | "demo" | "cash";
           url?: string;
-          order?: { orderNumber: string };
+          order?: { orderNumber: string; totalCents?: number };
           error?: string;
         };
         if (!response.ok) {
@@ -565,9 +592,12 @@ export default function Home() {
           window.location.href = body.url;
           return;
         }
+        if (body.mode === "cash") {
+          setCashTotal(typeof body.order?.totalCents === "number" ? body.order.totalCents : Math.round(total * 100));
+        }
         setOrderNumber(body.order?.orderNumber ?? "");
         trackPurchase({
-          value: Number(total.toFixed(2)),
+          value: Number(displayTotal.toFixed(2)),
           currency: "USD",
           content_type: "product",
           content_ids: cart.map((line) => String(line.item.id)),
@@ -718,6 +748,39 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryAddress, fulfillment, checkoutStep]);
 
+  const priceQuoteSeqRef = useRef(0);
+  useEffect(() => {
+    if (checkoutStep === "success") return;
+    const seq = ++priceQuoteSeqRef.current;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch("/api/checkout/quote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: cart.map((line) => ({ id: line.item.id, quantity: line.quantity, options: line.options })),
+              phone: checkoutPhone,
+              fulfillment: fulfillment === "Delivery" ? "delivery" : "pickup",
+              address:
+                fulfillment === "Delivery"
+                  ? buildFullAddress(deliveryAddress.address, deliveryAddress.address2, deliveryAddress.city, deliveryAddress.state, deliveryAddress.zip)
+                  : "",
+              couponCode: couponState === "applied" ? couponCode : "",
+              redeemPoints: pointsRedeem,
+            }),
+          });
+          const body = (await response.json()) as CheckoutQuote & { error?: string };
+          if (!response.ok) throw new Error(body.error ?? "Couldn’t price the order.");
+          if (seq === priceQuoteSeqRef.current) setQuote(body);
+        } catch {
+          if (seq === priceQuoteSeqRef.current) setQuote(null);
+        }
+      })();
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [checkoutStep, cart, checkoutPhone, fulfillment, deliveryAddress, couponCode, couponState, pointsRedeem]);
+
   async function subscribe(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const email = subscribeEmail.trim();
@@ -749,6 +812,9 @@ export default function Home() {
     setCartOpen(false);
     setOrderNumber("");
     setOrderError("");
+    setPaymentMethod("card");
+    setCashTotal(null);
+    setQuote(null);
     removeCoupon();
     setCheckoutPhone("");
     setPointsBalance(0);
@@ -924,6 +990,9 @@ export default function Home() {
                 <h3>You’re on the board.</h3>
                 <div className="order-number"><span>Order</span><strong>{orderNumber || "#PTB-000"}</strong></div>
                 <p className="success-copy">Your {fulfillment.toLowerCase()} window is approximately 20–25 minutes.</p>
+                {cashTotal !== null && (
+                  <p className="success-copy cash-note">Please pay {money(cashTotal / 100)} in person at {fulfillment === "Delivery" ? "delivery" : "pickup"}.</p>
+                )}
                 <button type="button" className="button button-dark" onClick={resetOrder}>Start another order</button>
               </div>
             ) : checkoutStep === "checkout" ? (
@@ -949,6 +1018,22 @@ export default function Home() {
                     }}
                   />
                 </label>
+                <fieldset className="payment-method">
+                  <legend>How will you pay?</legend>
+                  <div className="payment-options">
+                    {([["card", "Pay by card"], ["cash", "Cash in person"]] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={paymentMethod === value ? "active" : ""}
+                        aria-pressed={paymentMethod === value}
+                        onClick={() => setPaymentMethod(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
                 {pointsLoading ? (
                   <div className="points-note">Checking your points…</div>
                 ) : pointsState === "error" ? (
@@ -968,14 +1053,14 @@ export default function Home() {
                           type="number"
                           inputMode="numeric"
                           min={0}
-                          max={maxRedeemablePoints}
+                          max={effectiveMaxRedeemable}
                           step={100}
-                          value={Math.min(pointsRedeem, maxRedeemablePoints)}
+                          value={Math.min(pointsRedeem, effectiveMaxRedeemable)}
                           placeholder="0"
                           aria-label="Points to redeem"
                           onChange={(event) =>
                             setPointsRedeem(
-                              Math.min(Math.max(Math.round(Number(event.target.value) || 0), 0), maxRedeemablePoints),
+                              Math.min(Math.max(Math.round(Number(event.target.value) || 0), 0), effectiveMaxRedeemable),
                             )
                           }
                         />
@@ -985,7 +1070,7 @@ export default function Home() {
                       </div>
                     </label>
                     <small>
-                      Up to {maxRedeemablePoints.toLocaleString("en-US")} points ({money(maxRedeemablePoints / 100)}) off
+                      Up to {effectiveMaxRedeemable.toLocaleString("en-US")} points ({money(effectiveMaxRedeemable / 100)}) off
                       this order.
                     </small>
                   </div>
@@ -1059,18 +1144,18 @@ export default function Home() {
                   </div>
                 )}
                 <div className="cart-totals">
-                  <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
-                  {couponState === "applied" && couponDiscount > 0 && (
-                    <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(couponDiscount)}</strong></div>
+                  <div><span>Subtotal</span><strong>{money(displaySubtotal)}</strong></div>
+                  {displayCouponDiscount > 0 && (
+                    <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(displayCouponDiscount)}</strong></div>
                   )}
-                  {pointsDiscount > 0 && (
-                    <div className="cart-discount points-line"><span>Points (−{pointsDiscountCents} pts)</span><strong>−{money(pointsDiscount)}</strong></div>
+                  {displayPointsDiscount > 0 && (
+                    <div className="cart-discount points-line"><span>Points (−{displayPointsRedeemed} pts)</span><strong>−{money(displayPointsDiscount)}</strong></div>
                   )}
-                  {deliveryFee > 0 && (
-                    <div><span>Delivery fee</span><strong>{money(deliveryFee)}</strong></div>
+                  {displayDeliveryFee > 0 && (
+                    <div><span>Delivery fee</span><strong>{money(displayDeliveryFee)}</strong></div>
                   )}
-                  <div><span>Tax + service</span><strong>{money(serviceFee + tax)}</strong></div>
-                  <div className="grand-total"><span>Total</span><strong>{money(total)}</strong></div>
+                  <div><span>Tax + service</span><strong>{money(displayTaxService)}</strong></div>
+                  <div className="grand-total"><span>Total</span><strong>{money(displayTotal)}</strong></div>
                 </div>
                 {orderError && <div className="demo-note" role="alert">{orderError}</div>}
                 <button className="button button-primary checkout-button" type="submit" disabled={placingOrder || (fulfillment === "Delivery" && feeLoading)}>
@@ -1078,7 +1163,7 @@ export default function Home() {
                     ? "Placing order…"
                     : fulfillment === "Delivery" && feeLoading
                       ? "Calculating delivery fee…"
-                      : `Place order · ${money(total)}`}
+                      : `Place order · ${money(displayTotal)}`}
                 </button>
               </form>
             ) : (
@@ -1118,18 +1203,18 @@ export default function Home() {
                 )}
 
                 <div className="cart-totals">
-                  <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
-                  {couponState === "applied" && couponDiscount > 0 && (
-                    <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(couponDiscount)}</strong></div>
+                  <div><span>Subtotal</span><strong>{money(displaySubtotal)}</strong></div>
+                  {displayCouponDiscount > 0 && (
+                    <div className="cart-discount"><span>Coupon {couponCode.toUpperCase()}</span><strong>−{money(displayCouponDiscount)}</strong></div>
                   )}
-                  {pointsDiscount > 0 && (
-                    <div className="cart-discount points-line"><span>Points (−{pointsDiscountCents} pts)</span><strong>−{money(pointsDiscount)}</strong></div>
+                  {displayPointsDiscount > 0 && (
+                    <div className="cart-discount points-line"><span>Points (−{displayPointsRedeemed} pts)</span><strong>−{money(displayPointsDiscount)}</strong></div>
                   )}
-                  {deliveryFee > 0 && (
-                    <div><span>Delivery fee</span><strong>{money(deliveryFee)}</strong></div>
+                  {displayDeliveryFee > 0 && (
+                    <div><span>Delivery fee</span><strong>{money(displayDeliveryFee)}</strong></div>
                   )}
-                  <div><span>Tax + service</span><strong>{money(serviceFee + tax)}</strong></div>
-                  <div className="grand-total"><span>Total</span><strong>{money(total)}</strong></div>
+                  <div><span>Tax + service</span><strong>{money(displayTaxService)}</strong></div>
+                  <div className="grand-total"><span>Total</span><strong>{money(displayTotal)}</strong></div>
                 </div>
                 <button
                   className="button button-primary checkout-button"
