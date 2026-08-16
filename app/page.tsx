@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { trackAddToCart, trackPurchase } from "../lib/fbq";
 import SiteHeader from "./components/site-header";
 import { getBusinessStatus, formatClock } from "../lib/hours";
@@ -259,7 +259,7 @@ export default function Home() {
     };
   }, []);
 
-  function restoreCanceledCart() {
+  const restoreCanceledCart = useCallback(() => {
     try {
       const stored = sessionStorage.getItem("otb-cart");
       if (!stored) return;
@@ -291,7 +291,7 @@ export default function Home() {
       sessionStorage.removeItem("otb-cart");
       setPendingRestore(false);
     }
-  }
+  }, [liveMenu]);
 
   useEffect(() => {
     let cancelled = false;
@@ -362,12 +362,12 @@ export default function Home() {
   }, []);
 
   const hours = liveHours;
-  const menuItemsSource = liveMenu ?? [];
+  const menuItemsSource = useMemo(() => liveMenu ?? [], [liveMenu]);
 
   useEffect(() => {
     if (!pendingRestore) return;
     queueMicrotask(restoreCanceledCart);
-  }, [pendingRestore, liveMenu, menuItemsSource]);
+  }, [pendingRestore, restoreCanceledCart]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -866,7 +866,7 @@ export default function Home() {
 
         <div className="hero-visual" aria-label="Philly on the Block neighborhood illustration" ref={heroVisualRef}>
           <img className="scene-crosswalk" src="/images/otb-crosswalk.png" alt="" ref={crosswalkRef} />
-          <img className="scene-truck" src="/images/otb-food-truck.png" alt="Philly on the Block cheesesteak food truck in Burbank" />
+          <img className="scene-truck" src="/images/otb-food-truck.png" alt="Philly on the Block cheesesteak food truck in Burbank" fetchPriority="high" />
           <img className="scene-mascot-left" src="/images/otb-mascot-left.png" alt="Philly on the Block founder holding a Burbank cheesesteak" />
           <img className="scene-mascot" src="/images/otb-mascot-right.png" alt="Philly on the Block founder holding a Burbank cheesesteak" />
           <img className="scene-sign" src="/images/otb-street-sign.png" alt="Philly on the Block street sign in Burbank, CA" ref={signRef} />
@@ -1314,7 +1314,7 @@ export default function Home() {
           {subscribeMessage && <p className="newsletter-status" role="status">{subscribeMessage}</p>}
         </div>
         <a className="brand footer-brand" href="#top">
-          <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
+          <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" loading="lazy" />
         </a>
         <p>Fresh bread. Big flavor. Block energy.</p>
         <div className="footer-links">

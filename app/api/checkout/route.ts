@@ -5,9 +5,13 @@ import { orders } from "../../../db/schema";
 import { createCheckoutSession, isStripeConfigured } from "../../../lib/payments";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { buildStripeLineItems, OrderValidationError, parseOrderPayload } from "../../../lib/orders";
-import { computeOrderQuote, decrementStock, restoreStock, validateStock } from "../../../lib/checkout";
+import { allStockDecrementable, computeOrderQuote, decrementStock, restoreStock, validateStock } from "../../../lib/checkout";
 import { geocodeAddress } from "../../../lib/tracking";
 import { computePointsEarned } from "../../../lib/points";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
+
+const CHECKOUT_MAX_PER_WINDOW = 10;
+const CHECKOUT_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +21,13 @@ export async function POST(request: Request) {
 
     const db = getDb();
     await ensureBootstrap(db);
+
+    // Each attempt writes an order row and may call the external geocoder,
+    // so keep unauthenticated spam from flooding D1 or burning Nominatim quota.
+    const limited = await checkRateLimit(db, `checkout:${clientIp(request)}`, CHECKOUT_MAX_PER_WINDOW, CHECKOUT_WINDOW_MS);
+    if (!limited.allowed) {
+      return rateLimitResponse(limited) ?? Response.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const quote = await computeOrderQuote(db, payload);
     if ("error" in quote) {
@@ -116,8 +127,8 @@ export async function POST(request: Request) {
 
     if (!isStripeConfigured()) {
       const decremented = await decrementStock(db, parsed.lines);
-      if (!decremented) {
-        await restoreStock(db, parsed.lines);
+      if (!allStockDecrementable(decremented, parsed.lines)) {
+        await restoreStock(db, decremented);
         await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, inserted.id));
         return Response.json(
           {

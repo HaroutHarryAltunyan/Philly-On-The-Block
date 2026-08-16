@@ -50,15 +50,14 @@ export async function validateStock(
   }
   if (requested.size === 0) return null;
 
-  const conditions = [...requested.keys()]
-    .map((id) => `id = ${id}`)
-    .join(" OR ");
-  const rows = (await db.run(sql.raw(`SELECT id, name, stock_qty FROM menu_items WHERE ${conditions}`))) as unknown as {
-    results?: Array<{ id: number; name: string; stock_qty: number | null }>;
-  };
+  const rows = await db
+    .select({ id: schema.menuItems.id, name: schema.menuItems.name, stockQty: schema.menuItems.stockQty })
+    .from(schema.menuItems)
+    .where(inArray(schema.menuItems.id, [...requested.keys()]));
+
   const found = new Map<number, { name: string; stock: number | null }>();
-  for (const row of rows.results ?? []) {
-    found.set(row.id, { name: row.name, stock: row.stock_qty });
+  for (const row of rows) {
+    found.set(row.id, { name: row.name, stock: row.stockQty });
   }
 
   for (const [id, quantity] of requested) {
@@ -74,44 +73,48 @@ export async function validateStock(
   return null;
 }
 
-export async function decrementStock(db: DrizzleD1Database<typeof schema>, lines: OrderLine[]): Promise<boolean> {
-  let allDecremented = true;
+// Returns the lines that were actually decremented. Tracked items only
+// decrement while sufficient stock remains (single atomic statement, so
+// concurrent checkouts can't both claim the last unit); items without stock
+// tracking (stock_qty IS NULL) are unlimited and always succeed. Callers must
+// restore exactly this list on failure — never the full input, or lines that
+// were not decremented would be inflated.
+export async function decrementStock(
+  db: DrizzleD1Database<typeof schema>,
+  lines: OrderLine[],
+): Promise<OrderLine[]> {
+  const decremented: OrderLine[] = [];
   for (const line of lines) {
     if (line.id === null) continue;
-    // Items without stock tracking (stock_qty IS NULL) are treated as
-    // unlimited; tracked items only decrement while sufficient stock
-    // remains. Single atomic statement, so concurrent checkouts can't
-    // both claim the last unit.
     const result = await db.run(
       sql`UPDATE menu_items
           SET stock_qty = CASE WHEN stock_qty IS NULL THEN NULL ELSE stock_qty - ${line.quantity} END
           WHERE id = ${line.id} AND (stock_qty IS NULL OR stock_qty >= ${line.quantity})`,
     );
-    if ((result.meta?.changes ?? 0) !== 1) {
-      allDecremented = false;
+    if ((result.meta?.changes ?? 0) === 1) {
+      decremented.push(line);
     }
   }
-  return allDecremented;
+  return decremented;
 }
 
 export async function restoreStock(db: DrizzleD1Database<typeof schema>, lines: OrderLine[]): Promise<void> {
   for (const line of lines) {
     if (line.id === null) continue;
     await db.run(
-      sql.raw(
-        `UPDATE menu_items SET stock_qty = COALESCE(stock_qty, 0) + ${Math.max(line.quantity, 0)} WHERE id = ${line.id} AND stock_qty IS NOT NULL`,
-      ),
+      sql`UPDATE menu_items SET stock_qty = COALESCE(stock_qty, 0) + ${Math.max(line.quantity, 0)} WHERE id = ${line.id} AND stock_qty IS NOT NULL`,
     );
   }
+}
+
+export function allStockDecrementable(decremented: OrderLine[], lines: OrderLine[]): boolean {
+  return decremented.length === lines.filter((line) => line.id !== null).length;
 }
 
 export async function repriceLines(
   db: DrizzleD1Database<typeof schema>,
   items: OrderLineInput[],
-): Promise<
-  | { lines: Array<OrderLineInput & { name: string; priceCents: number; optionPriceCents: number; quantity: number }> }
-  | { error: string }
-> {
+): Promise<{ lines: RepricedLine[] } | { error: string }> {
   const requestedIds = new Set<number>();
 
   for (const item of items) {
@@ -148,7 +151,7 @@ export async function repriceLines(
     optionsById.set(option.menuItemId, byName);
   }
 
-  const lines: Array<OrderLineInput & { name: string; priceCents: number; optionPriceCents: number; quantity: number }> = [];
+  const lines: RepricedLine[] = [];
   for (const item of items) {
     const id = item.id as number;
     const row = itemsById.get(id)!;
@@ -179,10 +182,12 @@ export async function repriceLines(
 }
 
 export type RepricedLine = OrderLineInput & {
+  id: number;
   name: string;
   priceCents: number;
   optionPriceCents: number;
   quantity: number;
+  options: string[];
 };
 
 export type OrderQuoteInput = {
@@ -288,11 +293,11 @@ export async function markOrderPaid(
 
   const lines = JSON.parse(updated.items) as OrderLine[];
   const decremented = await decrementStock(db, lines);
-  if (!decremented) {
-    // The item sold out between validation and payment. Revert any lines
-    // that were decremented so the shelf stock stays truthful; the paid
+  if (!allStockDecrementable(decremented, lines)) {
+    // The item sold out between validation and payment. Revert exactly the
+    // lines that were decremented so the shelf stock stays truthful; the paid
     // order stays visible for staff to refund manually.
-    await restoreStock(db, lines);
+    await restoreStock(db, decremented);
   }
   return true;
 }

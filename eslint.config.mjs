@@ -48,6 +48,15 @@ const eslintConfig = defineConfig([
       "@next/next/no-html-link-for-pages": "off",
     },
   },
+  {
+    // vinext on Cloudflare Workers does not run the next/image optimizer, so
+    // <Image /> would just add a client-side loader with no optimization.
+    // Plain <img> tags are used instead, with loading="lazy" below the fold
+    // and fetchPriority="high" on the hero LCP image.
+    rules: {
+      "@next/next/no-img-element": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

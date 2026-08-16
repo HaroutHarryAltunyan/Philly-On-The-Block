@@ -55,7 +55,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
-        <link rel="icon" href="/images/Philly_On_The_Block_Logo.png" />
+        <link rel="icon" href="/icons/favicon-48.png" sizes="48x48" />
+        <link rel="icon" href="/images/Philly_On_The_Block_Logo.png" sizes="1230x1278" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="theme-color" content="#007404" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

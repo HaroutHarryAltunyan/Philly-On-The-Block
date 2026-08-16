@@ -95,6 +95,16 @@ export function requestIsSecure(request: Request): boolean {
   return new URL(request.url).protocol === "https:";
 }
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+export function requestIsLocal(request: Request): boolean {
+  try {
+    return LOCAL_HOSTS.has(new URL(request.url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function sessionCookieHeader(token: string, maxAge: number, secure = true): string {
   return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; ${secure ? "Secure; " : ""}Max-Age=${Math.floor(maxAge / 1000)}`;
 }

@@ -4,7 +4,7 @@ A bold, responsive restaurant ordering experience for Philly on the Block, built
 
 - **Customer site** (`/`) — menu, cart with add-on options, sold-out tracking, pickup/delivery, coupon codes, order notes, Stripe checkout, order tracking (`/track` — with phone-based recent order lookup)
 - **Reservations** (`/reserve`) — customers book tables online; requests land in the dashboard as pending
-- **Restaurant dashboard** (`/dashboard`) — live orders with payment status, menu management (add-on options + stock counts), coupons, reservations, hours, configurable pricing, passcode login (default `philly123`)
+- **Restaurant dashboard** (`/dashboard`) — live orders with payment status, menu management (add-on options + stock counts), coupons, reservations, hours, configurable pricing, passcode login
 
 ## Local development
 
@@ -14,6 +14,26 @@ npm run dev
 ```
 
 The database bootstraps automatically on first run (tables + seeded menu). The customer checkout works in demo mode without payment keys; orders land in `/dashboard` immediately.
+
+## Dashboard passcode
+
+Local development (`localhost`) uses the default passcode `philly123`. Because this repo is public, that passcode **never works on the production domain** — login there returns 403 until you set your own.
+
+First-run (or recovery) uses a one-time setup token:
+
+```bash
+# 1. Generate a random token and store it in D1 (replaces any previous one)
+TOKEN=$(openssl rand -hex 16)
+npx wrangler d1 execute philly-on-the-block --command \
+  "INSERT OR REPLACE INTO settings (key, value) VALUES ('setupToken', '$TOKEN');"
+
+# 2. Set your passcode (min 8 characters). The token is consumed on success.
+curl -X POST https://admin.phillyontheblock.com/api/admin/setup \
+  -H 'Content-Type: application/json' \
+  -d "{\"setupToken\": \"$TOKEN\", \"passcode\": \"your-new-passcode\"}"
+```
+
+After that, log in at `https://admin.phillyontheblock.com/dashboard/login` with your new passcode. You can also change the passcode anytime in **Dashboard → Settings**.
 
 ## Pricing
 

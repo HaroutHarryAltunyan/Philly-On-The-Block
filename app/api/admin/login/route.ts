@@ -3,6 +3,7 @@ import { ensureBootstrap } from "../../../../db/bootstrap";
 import {
   createSessionToken,
   passcodeIsDefault,
+  requestIsLocal,
   requestIsSecure,
   sessionCookieHeader,
   SESSION_TTL_MS,
@@ -29,6 +30,16 @@ export async function POST(request: Request) {
     const limited = await checkRateLimit(db, key, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS);
     if (!limited.allowed) {
       return rateLimitResponse(limited) ?? Response.json({ error: "Too many attempts" }, { status: 429 });
+    }
+
+    // The default passcode is public (documented in the repo), so it must
+    // never work outside local development. Production first-run uses the
+    // one-time setup token flow (POST /api/admin/setup, see README).
+    if (!requestIsLocal(request) && (await passcodeIsDefault(db))) {
+      return Response.json(
+        { error: "The default passcode is disabled outside local development. Set your own passcode with the one-time setup flow (see README)." },
+        { status: 403 },
+      );
     }
 
     if (!(await verifyPasscode(db, passcode))) {

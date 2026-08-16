@@ -277,6 +277,7 @@ export default function MenuPage() {
                     <img
                       src={form.image}
                       alt="Menu item preview"
+                      loading="lazy"
                       style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "2px solid #0b0b0d" }}
                     />
                     <button className="button small secondary" type="button" onClick={() => setForm({ ...form, image: "" })}>

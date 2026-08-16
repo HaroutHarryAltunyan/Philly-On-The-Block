@@ -1,3 +1,5 @@
+import { geocodePoint } from "./geocode";
+
 export const STORE_LOCATION = {
   latitude: 34.1841,
   longitude: -118.3396,
@@ -54,32 +56,10 @@ function addressVariants(address: string): string[] {
   });
 }
 
-async function geocodeQuery(query: string): Promise<{ latitude: number; longitude: number } | null> {
-  const response = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`,
-    {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "PhillyOnTheBlock/0.1 (restaurant delivery geocoding)",
-      },
-      signal: AbortSignal.timeout(8000),
-    },
-  );
-  if (!response.ok) return null;
-  const results = (await response.json()) as { lat?: string; lon?: string }[];
-  const first = results[0];
-  if (!first || first.lat === undefined || first.lon === undefined) return null;
-  return { latitude: parseFloat(first.lat), longitude: parseFloat(first.lon) };
-}
-
 export async function geocodeAddress(address: string): Promise<{ latitude: number; longitude: number } | null> {
   for (const variant of addressVariants(address)) {
-    try {
-      const coords = await geocodeQuery(variant);
-      if (coords) return coords;
-    } catch {
-      // fall through to the next, simpler variant
-    }
+    const coords = await geocodePoint(variant);
+    if (coords) return coords;
   }
   return null;
 }

@@ -4,6 +4,10 @@ import { ensureBootstrap } from "../../../../db/bootstrap";
 import { coupons } from "../../../../db/schema";
 import { computeCouponDiscount, type CouponInfo } from "../../../../lib/orders";
 import { toErrorResponse } from "../../../../lib/admin-routes";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../../../../lib/rate-limit";
+
+const COUPON_MAX_PER_WINDOW = 30;
+const COUPON_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +21,11 @@ export async function POST(request: Request) {
 
     const db = getDb();
     await ensureBootstrap(db);
+
+    const limited = await checkRateLimit(db, `coupon:${clientIp(request)}`, COUPON_MAX_PER_WINDOW, COUPON_WINDOW_MS);
+    if (!limited.allowed) {
+      return rateLimitResponse(limited) ?? Response.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const rows = await db.select().from(coupons).where(sql`${coupons.code} = ${code}`).limit(1);
     const coupon = rows[0];

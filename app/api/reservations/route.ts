@@ -2,6 +2,10 @@ import { getDb } from "../../../db";
 import { ensureBootstrap } from "../../../db/bootstrap";
 import { reservations } from "../../../db/schema";
 import { toErrorResponse } from "../../../lib/admin-routes";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
+
+const RESERVATION_MAX_PER_WINDOW = 5;
+const RESERVATION_WINDOW_MS = 60 * 60 * 1000;
 
 const NAME_RE = /^[a-zA-Z0-9 .,'’-]{1,60}$/;
 const PHONE_DIGITS = /^\d{7,15}$/;
@@ -58,6 +62,11 @@ export async function POST(request: Request) {
 
     const db = getDb();
     await ensureBootstrap(db);
+
+    const limited = await checkRateLimit(db, `reservation:${clientIp(request)}`, RESERVATION_MAX_PER_WINDOW, RESERVATION_WINDOW_MS);
+    if (!limited.allowed) {
+      return rateLimitResponse(limited) ?? Response.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const [reservation] = await db
       .insert(reservations)
