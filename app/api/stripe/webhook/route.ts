@@ -5,6 +5,10 @@ import { orders } from "../../../../db/schema";
 import { verifyWebhookSignature } from "../../../../lib/payments";
 import { markOrderPaid, releaseStock } from "../../../../lib/checkout";
 
+export async function GET() {
+  return Response.json({ ok: true, message: "Stripe webhook endpoint is active. This endpoint accepts POST only." });
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
