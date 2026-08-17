@@ -3,7 +3,7 @@ import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
 import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
-import { restoreStock } from "@/lib/checkout";
+import { restoreOrderStock } from "@/lib/checkout";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
 
 const STATUSES = ["new", "preparing", "ready", "delivering", "completed", "cancelled"] as const;
@@ -43,6 +43,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         .where(eq(orders.id, orderId))
         .returning();
       if (!updated) return Response.json({ error: "Order not found" }, { status: 404 });
+      if (payload.status === "cancelled") {
+        await restoreOrderStock(driverDb, updated);
+      }
       return Response.json({ order: { ...updated, items: JSON.parse(updated.items) as unknown } });
     }
 
@@ -57,20 +60,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       .where(and(eq(orders.id, orderId)))
       .returning();
 
-    if (payload.status === "cancelled" && order.paymentStatus === "paid") {
-      const lines = JSON.parse(order.items) as Array<{ id?: number; name: string; priceCents: number; optionPriceCents: number; quantity: number; options: string[] }>;
-      await restoreStock(
-        db,
-        lines.map((line) => ({
-          ...line,
-          id: line.id ?? null,
-          name: line.name,
-          priceCents: line.priceCents,
-          optionPriceCents: line.optionPriceCents,
-          options: line.options,
-          quantity: line.quantity,
-        })),
-      );
+    if (payload.status === "cancelled") {
+      // Restores exactly the lines recorded on the order (or, for legacy
+      // orders without a record, the full item list if paid). Unpaid cash
+      // orders reserved nothing, so this is a no-op for them.
+      await restoreOrderStock(db, order);
     }
 
     return Response.json({ order: { ...order, items: JSON.parse(order.items) as unknown } });
@@ -95,20 +89,8 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     }
 
     const order = existing[0];
-    if (order.status !== "cancelled" && order.paymentStatus === "paid") {
-      const lines = JSON.parse(order.items) as Array<{ id?: number; name: string; priceCents: number; optionPriceCents: number; quantity: number; options: string[] }>;
-      await restoreStock(
-        db,
-        lines.map((line) => ({
-          ...line,
-          id: line.id ?? null,
-          name: line.name,
-          priceCents: line.priceCents,
-          optionPriceCents: line.optionPriceCents,
-          options: line.options,
-          quantity: line.quantity,
-        })),
-      );
+    if (order.status !== "cancelled") {
+      await restoreOrderStock(db, order);
     }
 
     await db.delete(orders).where(and(eq(orders.id, orderId)));

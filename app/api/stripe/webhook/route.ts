@@ -3,7 +3,7 @@ import { getDb } from "../../../../db";
 import { ensureBootstrap } from "../../../../db/bootstrap";
 import { orders } from "../../../../db/schema";
 import { verifyWebhookSignature } from "../../../../lib/payments";
-import { markOrderPaid } from "../../../../lib/checkout";
+import { markOrderPaid, releaseStock } from "../../../../lib/checkout";
 
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
@@ -49,6 +49,24 @@ export async function POST(request: Request) {
       }
 
       await markOrderPaid(db, orderId, (session.payment_method_types ?? ["card"]).join(", "));
+    }
+  }
+
+  if (event.type === "checkout.session.expired") {
+    const session = event.data.object;
+    const orderId = Number(session.metadata?.orderId);
+    if (Number.isInteger(orderId) && orderId > 0) {
+      const db = getDb();
+      await ensureBootstrap(db);
+
+      const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+      // The session expired without payment: cancel the order and release the
+      // stock reserved at creation so it's sellable again. If a completed
+      // event raced ahead and the order is already paid, leave it alone.
+      if (order && order.status !== "cancelled" && order.paymentStatus === "unpaid") {
+        await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, orderId));
+        await releaseStock(db, orderId);
+      }
     }
   }
 

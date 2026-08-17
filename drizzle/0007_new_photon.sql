@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `stock_decremented` text DEFAULT '' NOT NULL;

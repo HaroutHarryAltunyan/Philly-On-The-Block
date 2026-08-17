@@ -189,9 +189,12 @@ export function parseOrderPayload(
     pointsDiscountCents: options.pointsDiscountCents,
     deliveryFeeOverrideCents: (payload as { deliveryFeeCents?: number }).deliveryFeeCents,
   });
+  // The caller (computeOrderQuote) already caps redemption at maxRedeemable,
+  // so only normalize here — deriving a cap from the cent value would silently
+  // break if POINTS_TO_CENTS ever stops being 1.
   const pointsRedeemed =
     options.pointsRedeemedPoints !== undefined
-      ? Math.min(Math.max(Math.round(Number(options.pointsRedeemedPoints) || 0), 0), totals.pointsDiscountCents)
+      ? Math.max(Math.round(Number(options.pointsRedeemedPoints) || 0), 0)
       : totals.pointsDiscountCents;
 
   return {
@@ -229,28 +232,40 @@ export function buildStripeLineItems(parsed: ParsedOrder): Array<{ name: string;
   }));
 
   if (discountCents > 0 && subtotalCents > 0) {
+    // First pass: each line absorbs the floor of its proportional share.
     let remaining = discountCents;
-    itemLines.forEach((line, index) => {
-      if (remaining <= 0) return;
-      const isLast = index === itemLines.length - 1;
-      const share = isLast
-        ? Math.min(remaining, line.totalCents)
-        : Math.min(Math.floor((line.totalCents / subtotalCents) * discountCents), line.totalCents, remaining);
+    for (const line of itemLines) {
+      const share = Math.min(Math.floor((line.totalCents / subtotalCents) * discountCents), line.totalCents, remaining);
       line.totalCents -= share;
       remaining -= share;
-    });
+    }
+    // Second pass: flooring loses at most one cent per line, so a few cents
+    // can be left unassigned. Hand them out to lines that still have value —
+    // the total capacity is always enough (discount <= subtotal) — so the
+    // discounted item total is exactly subtotal - discount. Dropping the
+    // remainder would make Stripe charge more than the order total.
+    for (const line of itemLines) {
+      if (remaining <= 0) break;
+      const share = Math.min(remaining, line.totalCents);
+      line.totalCents -= share;
+      remaining -= share;
+    }
   }
 
-  return itemLines.map((line) => {
-    // When a line absorbed a discount its total may no longer divide evenly
-    // by its quantity, so bill it as a single unit to keep the cents exact.
-    const discounted = line.totalCents !== line.unitCents * line.quantity;
-    return {
-      name: line.name,
-      quantity: discounted ? 1 : line.quantity,
-      amountCents: discounted ? line.totalCents : line.unitCents,
-    };
-  });
+  return itemLines
+    // Fully discounted (or free) items bill nothing; a zero-amount line item
+    // is unnecessary and some Stripe configs reject it.
+    .filter((line) => line.totalCents > 0)
+    .map((line) => {
+      // When a line absorbed a discount its total may no longer divide evenly
+      // by its quantity, so bill it as a single unit to keep the cents exact.
+      const discounted = line.totalCents !== line.unitCents * line.quantity;
+      return {
+        name: line.name,
+        quantity: discounted ? 1 : line.quantity,
+        amountCents: discounted ? line.totalCents : line.unitCents,
+      };
+    });
 }
 
 export class OrderValidationError extends Error {}

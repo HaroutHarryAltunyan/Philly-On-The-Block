@@ -63,6 +63,7 @@ const TABLES: Array<{ name: string; ddl: string }> = [
       points_earned INTEGER DEFAULT 0,
       points_redeemed INTEGER DEFAULT 0,
       points_discount_cents INTEGER DEFAULT 0,
+      stock_decremented TEXT NOT NULL DEFAULT '',
       paid_at INTEGER,
       created_at INTEGER NOT NULL
     )`,
@@ -222,6 +223,11 @@ const COLUMN_UPGRADES: Array<{ table: string; column: string; ddl: string }> = [
     table: "orders",
     column: "points_discount_cents",
     ddl: "ALTER TABLE orders ADD COLUMN points_discount_cents INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "orders",
+    column: "stock_decremented",
+    ddl: "ALTER TABLE orders ADD COLUMN stock_decremented TEXT NOT NULL DEFAULT ''",
   },
   {
     table: "reservations",

@@ -1,4 +1,4 @@
-import { inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { getSetting } from "./admin-auth";
@@ -73,29 +73,32 @@ export async function validateStock(
   return null;
 }
 
-// Returns the lines that were actually decremented. Tracked items only
-// decrement while sufficient stock remains (single atomic statement, so
-// concurrent checkouts can't both claim the last unit); items without stock
-// tracking (stock_qty IS NULL) are unlimited and always succeed. Callers must
-// restore exactly this list on failure — never the full input, or lines that
-// were not decremented would be inflated.
+// Tracked items only decrement while sufficient stock remains (single atomic
+// statement, so concurrent checkouts can't both claim the last unit); items
+// without stock tracking (stock_qty IS NULL) are unlimited and always satisfy.
+// `satisfied` is the all-or-nothing check list; `taken` is what was actually
+// decremented (unlimited items satisfy without being taken, so restoring them
+// later would inflate stock if tracking is enabled in the meantime).
 export async function decrementStock(
   db: DrizzleD1Database<typeof schema>,
   lines: OrderLine[],
-): Promise<OrderLine[]> {
-  const decremented: OrderLine[] = [];
+): Promise<{ satisfied: OrderLine[]; taken: OrderLine[] }> {
+  const satisfied: OrderLine[] = [];
+  const taken: OrderLine[] = [];
   for (const line of lines) {
     if (line.id === null) continue;
-    const result = await db.run(
+    const result = (await db.run(
       sql`UPDATE menu_items
           SET stock_qty = CASE WHEN stock_qty IS NULL THEN NULL ELSE stock_qty - ${line.quantity} END
-          WHERE id = ${line.id} AND (stock_qty IS NULL OR stock_qty >= ${line.quantity})`,
-    );
-    if ((result.meta?.changes ?? 0) === 1) {
-      decremented.push(line);
-    }
+          WHERE id = ${line.id} AND (stock_qty IS NULL OR stock_qty >= ${line.quantity})
+          RETURNING id, stock_qty`,
+    )) as unknown as { results?: Array<{ id: number; stock_qty: number | null }> };
+    const row = result.results?.[0];
+    if (!row) continue; // sold out — not satisfied
+    satisfied.push(line);
+    if (row.stock_qty !== null) taken.push(line); // NULL = unlimited, nothing was taken
   }
-  return decremented;
+  return { satisfied, taken };
 }
 
 export async function restoreStock(db: DrizzleD1Database<typeof schema>, lines: OrderLine[]): Promise<void> {
@@ -107,8 +110,71 @@ export async function restoreStock(db: DrizzleD1Database<typeof schema>, lines: 
   }
 }
 
-export function allStockDecrementable(decremented: OrderLine[], lines: OrderLine[]): boolean {
-  return decremented.length === lines.filter((line) => line.id !== null).length;
+export function allStockDecrementable(satisfied: OrderLine[], lines: OrderLine[]): boolean {
+  return satisfied.length === lines.filter((line) => line.id !== null).length;
+}
+
+// Decrements stock for the order's lines and records exactly which lines were
+// actually taken on the order row. Recording matters: a line can fail to
+// decrement (sold out in the meantime), and cancel/expire must restore only
+// what was actually taken — never the full item list.
+export async function reserveStock(
+  db: DrizzleD1Database<typeof schema>,
+  orderId: number,
+  lines: OrderLine[],
+): Promise<OrderLine[]> {
+  const { satisfied, taken } = await decrementStock(db, lines);
+  await db
+    .update(schema.orders)
+    .set({ stockDecremented: JSON.stringify(taken) })
+    .where(eq(schema.orders.id, orderId));
+  return satisfied;
+}
+
+// Restores exactly the lines recorded by reserveStock. The record is claimed
+// atomically (single UPDATE ... WHERE != '' RETURNING), so a cancel and an
+// expiry webhook racing each other can only restore once.
+export async function releaseStock(db: DrizzleD1Database<typeof schema>, orderId: number): Promise<void> {
+  const [claimed] = await db
+    .update(schema.orders)
+    .set({ stockDecremented: "" })
+    .where(sql`${schema.orders.id} = ${orderId} AND ${schema.orders.stockDecremented} != ''`)
+    .returning({ stockDecremented: schema.orders.stockDecremented });
+  if (!claimed) return;
+
+  let lines: OrderLine[] = [];
+  try {
+    const parsed = JSON.parse(claimed.stockDecremented);
+    if (Array.isArray(parsed)) lines = parsed;
+  } catch {
+    return;
+  }
+  if (lines.length === 0) return;
+  await restoreStock(db, lines);
+}
+
+// Restores the stock an order still holds. Orders created before the
+// stock_decremented column existed have no record; for those, fall back to
+// the legacy behavior (restore the full item list, paid orders only — their
+// stock was decremented at payment time by the old code).
+export async function restoreOrderStock(
+  db: DrizzleD1Database<typeof schema>,
+  order: { id: number; items: string; paymentStatus: string; stockDecremented?: string },
+): Promise<void> {
+  if (order.stockDecremented) {
+    await releaseStock(db, order.id);
+    return;
+  }
+  if (order.paymentStatus !== "paid") return;
+
+  let lines: OrderLine[] = [];
+  try {
+    const parsed = JSON.parse(order.items);
+    if (Array.isArray(parsed)) lines = parsed;
+  } catch {
+    return;
+  }
+  await restoreStock(db, lines);
 }
 
 export async function repriceLines(
@@ -275,6 +341,7 @@ export async function markOrderPaid(
   db: DrizzleD1Database<typeof schema>,
   orderId: number,
   paymentMethod: string,
+  options: { reserveStock?: boolean } = {},
 ): Promise<boolean> {
   const [updated] = await db
     .update(schema.orders)
@@ -291,13 +358,17 @@ export async function markOrderPaid(
 
   if (!updated) return false;
 
-  const lines = JSON.parse(updated.items) as OrderLine[];
-  const decremented = await decrementStock(db, lines);
-  if (!allStockDecrementable(decremented, lines)) {
-    // The item sold out between validation and payment. Revert exactly the
-    // lines that were decremented so the shelf stock stays truthful; the paid
-    // order stays visible for staff to refund manually.
-    await restoreStock(db, decremented);
+  // Card orders reserve stock when the Stripe session is created, so they
+  // arrive here already recorded. Cash payments reserve now. A stripe order
+  // with a session but no record was created before reservation existed —
+  // reserve now to keep the old behavior for in-flight orders. Whatever
+  // actually decrements is recorded on the order; a line that sold out in the
+  // meantime simply stays at zero and the paid order remains for staff to
+  // refund manually (cancel/expire restores exactly the recorded lines).
+  const needsReservation = options.reserveStock || (!updated.stockDecremented && updated.stripeSessionId !== "");
+  if (needsReservation) {
+    const lines = JSON.parse(updated.items) as OrderLine[];
+    await reserveStock(db, orderId, lines);
   }
   return true;
 }

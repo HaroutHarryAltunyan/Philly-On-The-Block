@@ -584,7 +584,20 @@ export default function Home() {
       .then((body) => {
         if (body.mode === "stripe" && body.url) {
           try {
-            sessionStorage.setItem("otb-cart", JSON.stringify(cart));
+            // Store the compact shape (itemId, not the full item object) —
+            // restoreCanceledCart and the pixel Purchase event both read it.
+            sessionStorage.setItem(
+              "otb-cart",
+              JSON.stringify(
+                cart.map((line) => ({
+                  lineId: line.lineId,
+                  itemId: line.item.id,
+                  quantity: line.quantity,
+                  options: line.options,
+                  optionPrice: line.optionPrice,
+                })),
+              ),
+            );
             sessionStorage.setItem("otb-fulfillment", fulfillment);
           } catch {
             // storage is optional

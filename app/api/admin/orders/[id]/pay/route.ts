@@ -53,7 +53,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ error: "Order is cancelled" }, { status: 409 });
     }
 
-    const paid = await markOrderPaid(db, orderId, "cash");
+    // Cash orders reserved no stock at creation — reserve now that the money
+    // is confirmed. Whatever actually decrements gets recorded on the order so
+    // a later cancel restores exactly that.
+    const paid = await markOrderPaid(db, orderId, "cash", { reserveStock: true });
     if (!paid) {
       return Response.json({ error: "Could not mark order as paid" }, { status: 409 });
     }

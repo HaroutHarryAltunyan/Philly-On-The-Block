@@ -76,6 +76,11 @@ export const orders = sqliteTable(
     pointsEarned: integer("points_earned").notNull().default(0),
     pointsRedeemed: integer("points_redeemed").notNull().default(0),
     pointsDiscountCents: integer("points_discount_cents").notNull().default(0),
+    // JSON array of the menu lines actually decremented for this order (same
+    // shape as `items`). Empty means no stock is reserved. Cancel/expire must
+    // restore exactly this list — never the full item list, or lines that were
+    // never decremented (e.g. sold out at payment time) would be inflated.
+    stockDecremented: text("stock_decremented").notNull().default(""),
     paidAt: integer("paid_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },

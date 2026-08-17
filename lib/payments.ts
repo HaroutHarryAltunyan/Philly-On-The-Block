@@ -45,6 +45,10 @@ export async function createCheckoutSession(params: {
     });
   }
 
+  if (lineItems.length === 0) {
+    throw new Error("Order has no billable amount");
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: params.customerEmail || undefined,

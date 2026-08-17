@@ -5,7 +5,7 @@ import { orders } from "../../../db/schema";
 import { createCheckoutSession, isStripeConfigured } from "../../../lib/payments";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { buildStripeLineItems, OrderValidationError, parseOrderPayload } from "../../../lib/orders";
-import { allStockDecrementable, computeOrderQuote, decrementStock, restoreStock, validateStock } from "../../../lib/checkout";
+import { allStockDecrementable, computeOrderQuote, releaseStock, reserveStock, validateStock } from "../../../lib/checkout";
 import { geocodeAddress } from "../../../lib/tracking";
 import { computePointsEarned } from "../../../lib/points";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
@@ -125,20 +125,25 @@ export async function POST(request: Request) {
       });
     }
 
-    if (!isStripeConfigured()) {
-      const decremented = await decrementStock(db, parsed.lines);
-      if (!allStockDecrementable(decremented, parsed.lines)) {
-        await restoreStock(db, decremented);
-        await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, inserted.id));
-        return Response.json(
-          {
-            error:
-              "An item in your bag just sold out. Remove it and try again, or check back shortly.",
-          },
-          { status: 409 },
-        );
-      }
+    // Reserve stock up front (cash orders reserve when staff confirms payment).
+    // Stock used to be decremented only at payment time, so two concurrent
+    // checkouts could both pass validation and both get charged for the last
+    // unit. If anything below fails, release the reservation and cancel the
+    // order so no zombie "new" orders or phantom reservations are left behind.
+    const reserved = await reserveStock(db, inserted.id, parsed.lines);
+    if (!allStockDecrementable(reserved, parsed.lines)) {
+      await releaseStock(db, inserted.id);
+      await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, inserted.id));
+      return Response.json(
+        {
+          error:
+            "An item in your bag just sold out. Remove it and try again, or check back shortly.",
+        },
+        { status: 409 },
+      );
+    }
 
+    if (!isStripeConfigured()) {
       await db
         .update(orders)
         .set({
@@ -162,14 +167,22 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin;
-    const { url, sessionId } = await createCheckoutSession({
-      orderId: inserted.id,
-      orderNumber,
-      lines: buildStripeLineItems(parsed),
-      feesLineCents: parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents,
-      successUrl: `${origin}/?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${origin}/?canceled=1`,
-    });
+    let url: string;
+    let sessionId: string;
+    try {
+      ({ url, sessionId } = await createCheckoutSession({
+        orderId: inserted.id,
+        orderNumber,
+        lines: buildStripeLineItems(parsed),
+        feesLineCents: parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents,
+        successUrl: `${origin}/?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${origin}/?canceled=1`,
+      }));
+    } catch (error) {
+      await releaseStock(db, inserted.id);
+      await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, inserted.id));
+      throw error;
+    }
 
     await db
       .update(orders)

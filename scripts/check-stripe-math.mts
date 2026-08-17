@@ -72,7 +72,23 @@ check("3¢ coupon, uneven split @8%", {
 // 9. Zero-fee edge (no service fee, no tax) -> fees line omitted
 check("zero fees", { lines: [line("A", 1000, 1)], fulfillment: "pickup", fees: { serviceFeeCents: 0, deliveryFeeCents: 0, taxRatePercent: 0 } }, 1000);
 
-// 10. Sweep: every subtotal from $0.01 to $250.00 at 10.25% must match
+// 10. Large fixed coupon near the subtotal with uneven lines: floor rounding
+// of each line's proportional share can leave cents that no single last line
+// can absorb — they must be redistributed, never dropped (dropping them makes
+// the session charge more than the order total).
+check("fixed $29.97 coupon, uneven 3 lines @8%", {
+  lines: [line("A", 1000, 1), line("B", 1000, 1), line("C", 998, 1)],
+  fulfillment: "pickup", fees: FEES_8, coupon: { type: "fixed", amount: 2997, minSubtotalCents: 0 },
+});
+
+// 10b. Coupon covering the whole order: every item line bills zero and must
+// be dropped from the session (only the fees line remains).
+check("coupon covers full order @8%", {
+  lines: [line("A", 500, 1), line("B", 2000, 1)],
+  fulfillment: "pickup", fees: FEES_8, coupon: { type: "fixed", amount: 2500, minSubtotalCents: 0 },
+});
+
+// 11. Sweep: every subtotal from $0.01 to $250.00 at 10.25% must match
 let sweepFail = 0;
 for (let cents = 1; cents <= 25000; cents++) {
   const totals = computeOrderTotals({ lines: [line("X", cents, 1)], fulfillment: "pickup", fees: FEES_1025 });
@@ -82,7 +98,7 @@ for (let cents = 1; cents <= 25000; cents++) {
 console.log(sweepFail === 0 ? "PASS sweep $0.01–$250.00 @10.25% (25,000 subtotals)" : `FAIL sweep: ${sweepFail} mismatches`);
 if (sweepFail > 0) failures++;
 
-// 11. Sweep with a 7% coupon at 10.25%
+// 12. Sweep with a 7% coupon at 10.25%
 let sweepFail2 = 0;
 for (let cents = 1; cents <= 25000; cents += 7) {
   const totals = computeOrderTotals({ lines: [line("X", cents, 1), line("Y", 550, 2)], fulfillment: "pickup", fees: FEES_1025, coupon: { type: "percent", amount: 7, minSubtotalCents: 0 } });

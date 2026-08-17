@@ -43,6 +43,15 @@ export async function GET(request: Request) {
       );
     }
 
+    // Defense in depth mirroring the webhook: a mismatch means the session and
+    // order drifted. The customer did pay Stripe, so mark it paid anyway — but
+    // log loudly so staff can reconcile the difference.
+    if (typeof session.amount_total === "number" && session.amount_total !== order.totalCents) {
+      console.warn(
+        `Checkout success: amount mismatch for order ${order.orderNumber} (session ${session.amount_total} vs order ${order.totalCents})`,
+      );
+    }
+
     await markOrderPaid(db, orderId, (session.payment_method_types ?? ["card"]).join(", "));
 
     const [fresh] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
