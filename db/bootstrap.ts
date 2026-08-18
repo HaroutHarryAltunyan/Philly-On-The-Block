@@ -39,6 +39,7 @@ const TABLES: Array<{ name: string; ddl: string }> = [
       name TEXT NOT NULL,
       phone TEXT NOT NULL,
       phone_key TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
       address TEXT NOT NULL DEFAULT '',
       fulfillment TEXT NOT NULL,
       items TEXT NOT NULL,
@@ -228,6 +229,11 @@ const COLUMN_UPGRADES: Array<{ table: string; column: string; ddl: string }> = [
     table: "orders",
     column: "stock_decremented",
     ddl: "ALTER TABLE orders ADD COLUMN stock_decremented TEXT NOT NULL DEFAULT ''",
+  },
+  {
+    table: "orders",
+    column: "email",
+    ddl: "ALTER TABLE orders ADD COLUMN email TEXT NOT NULL DEFAULT ''",
   },
   {
     table: "reservations",

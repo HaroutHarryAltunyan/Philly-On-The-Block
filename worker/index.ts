@@ -56,6 +56,35 @@ const worker = {
 
     return handler.fetch(request, env, ctx);
   },
+
+  // Cron-triggered reconciliation (see `triggers.crons` in wrangler.json).
+  // Stripe can fail to deliver the completed/expired webhooks; this sweeps old
+  // unpaid card orders and reconciles them against Stripe so reserved stock is
+  // not held forever and orders paid on Stripe are not left unpaid here.
+  //
+  // The DB/reaper modules are imported dynamically (not at the top of this
+  // entry) so their `cloudflare:workers` imports never land at the top level
+  // of the built worker — which keeps the module loadable in non-Workers
+  // contexts (e.g. the Node-based render test) where that scheme is unsupported.
+  async scheduled(): Promise<void> {
+    try {
+      const [{ getDb }, { ensureBootstrap }, { reapLingeringStripeOrders }] = await Promise.all([
+        import("../db"),
+        import("../db/bootstrap"),
+        import("../lib/checkout"),
+      ]);
+      const db = getDb();
+      await ensureBootstrap(db);
+      const result = await reapLingeringStripeOrders(db);
+      if (result.checked > 0 || result.markedPaid > 0 || result.cancelled > 0) {
+        console.log(
+          `[reaper] checked=${result.checked} markedPaid=${result.markedPaid} cancelled=${result.cancelled}`,
+        );
+      }
+    } catch (error) {
+      console.error("[reaper] sweep failed:", error);
+    }
+  },
 };
 
 export default worker;

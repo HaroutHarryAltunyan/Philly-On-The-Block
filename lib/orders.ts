@@ -33,6 +33,7 @@ export type ParsedOrder = {
   name: string;
   phone: string;
   phoneKey: string;
+  email: string;
   address: string;
   destLat: string;
   destLng: string;
@@ -121,10 +122,20 @@ export function computeCouponDiscount(subtotalCents: number, coupon: CouponInfo)
   return Math.min(Math.round((subtotalCents * percent) / 100), subtotalCents);
 }
 
+// Email is optional (used for the Stripe receipt). Normalize and drop anything
+// that isn't plausibly an address so we never hand Stripe a malformed value.
+function sanitizeEmail(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const email = value.trim().toLowerCase().slice(0, 320);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "";
+  return email;
+}
+
 export function parseOrderPayload(
   payload: {
     name?: string;
     phone?: string;
+    email?: string;
     address?: string;
     destLat?: string;
     destLng?: string;
@@ -145,6 +156,7 @@ export function parseOrderPayload(
   const name = payload.name?.trim() ?? "";
   const phone = payload.phone?.trim() ?? "";
   const phoneKey = normalizePhone(phone);
+  const email = sanitizeEmail(payload.email);
   const address = payload.address?.trim() ?? "";
   const destLat = parseCoordinate(payload.destLat, false);
   const destLng = parseCoordinate(payload.destLng, true);
@@ -201,6 +213,7 @@ export function parseOrderPayload(
     name,
     phone,
     phoneKey,
+    email,
     address,
     destLat,
     destLng,

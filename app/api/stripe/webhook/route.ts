@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { ensureBootstrap } from "../../../../db/bootstrap";
 import { orders } from "../../../../db/schema";
@@ -42,14 +42,13 @@ export async function POST(request: Request) {
       }
 
       // Defense in depth: the session total was built from server-computed
-      // prices, so a mismatch means the session and order have drifted.
-      // Don't mark the order paid; acknowledge the event so Stripe stops
-      // retrying and staff can reconcile manually.
+      // prices, so a mismatch means the session and order have drifted. The
+      // customer did pay Stripe, so mark the order paid anyway (matching the
+      // success path) but log loudly so staff can reconcile the difference.
       if (typeof session.amount_total === "number" && session.amount_total !== order.totalCents) {
         console.warn(
-          `Stripe webhook: amount mismatch for order ${order.orderNumber} (session ${session.amount_total} vs order ${order.totalCents})`,
+          `Stripe webhook: AMOUNT MISMATCH for order ${order.orderNumber} (session ${session.amount_total} vs order ${order.totalCents}) — marking paid, reconcile the difference`,
         );
-        return Response.json({ received: true, ignored: "amount_mismatch" });
       }
 
       await markOrderPaid(db, orderId, (session.payment_method_types ?? ["card"]).join(", "));
@@ -63,12 +62,20 @@ export async function POST(request: Request) {
       const db = getDb();
       await ensureBootstrap(db);
 
-      const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
       // The session expired without payment: cancel the order and release the
-      // stock reserved at creation so it's sellable again. If a completed
-      // event raced ahead and the order is already paid, leave it alone.
-      if (order && order.status !== "cancelled" && order.paymentStatus === "unpaid") {
-        await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, orderId));
+      // stock reserved at creation so it's sellable again. The cancel is a
+      // single guarded update (still unpaid, not already cancelled) so a
+      // completed event that races in between can't leave a paid order
+      // cancelled; stock is released only if this update actually won.
+      // releaseStock separately claims its record atomically.
+      const [updated] = await db
+        .update(orders)
+        .set({ status: "cancelled" })
+        .where(
+          sql`${orders.id} = ${orderId} AND ${orders.paymentStatus} = 'unpaid' AND ${orders.status} != 'cancelled'`,
+        )
+        .returning();
+      if (updated) {
         await releaseStock(db, orderId);
       }
     }

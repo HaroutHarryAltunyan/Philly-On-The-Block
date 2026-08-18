@@ -14,6 +14,7 @@ const NAV = [
   { href: "/dashboard/reservations", label: "Reservations" },
   { href: "/dashboard/menu", label: "Menu" },
   { href: "/dashboard/coupons", label: "Coupons" },
+  { href: "/dashboard/subscribers", label: "Subscribers" },
   { href: "/dashboard/drivers/manage", label: "Drivers" },
   { href: "/dashboard/settings", label: "Settings" },
 ];

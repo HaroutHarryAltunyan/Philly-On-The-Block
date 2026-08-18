@@ -954,6 +954,7 @@ a {
 .checkout-form input { width: 100%; border: 1px solid rgba(255, 255, 255, 0.2); padding: 12px; color: var(--cream); background: rgba(255, 255, 255, 0.07); outline: none; }
 .checkout-form input::placeholder { color: rgba(255, 250, 240, 0.38); }
 .checkout-form input:focus { border-color: var(--mustard); }
+.optional-tag { font-size: 8px; font-weight: 700; letter-spacing: 0.08em; color: rgba(255, 250, 240, 0.4); text-transform: none; }
 .demo-note { margin-top: 15px; padding: 10px; color: var(--mustard); background: rgba(244, 184, 36, 0.08); font-size: 10px; line-height: 1.4; }
 
 .order-success { min-height: 450px; display: flex; flex-direction: column; justify-content: center; align-items: stretch; text-align: center; }

@@ -178,6 +178,7 @@ export default function Home() {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponState, setCouponState] = useState<"idle" | "applying" | "applied" | "invalid">("idle");
   const [checkoutPhone, setCheckoutPhone] = useState("");
+  const [checkoutEmail, setCheckoutEmail] = useState("");
   const [pointsBalance, setPointsBalance] = useState(0);
   const [pointsRedeem, setPointsRedeem] = useState(0);
   const [pointsLoading, setPointsLoading] = useState(false);
@@ -550,6 +551,7 @@ export default function Home() {
         body: JSON.stringify({
           name,
           phone,
+          email: checkoutEmail,
           address: fulfillment === "Delivery" ? address : "",
           destLat,
           destLng,
@@ -830,6 +832,7 @@ export default function Home() {
     setQuote(null);
     removeCoupon();
     setCheckoutPhone("");
+    setCheckoutEmail("");
     setPointsBalance(0);
     setPointsRedeem(0);
     setPointsState("idle");
@@ -1029,6 +1032,18 @@ export default function Home() {
                       setCheckoutPhone(event.target.value);
                       if (pointsState === "error" || pointsState === "loaded") setPointsState("idle");
                     }}
+                  />
+                </label>
+                <label>
+                  Email for receipt <span className="optional-tag">(optional)</span>
+                  <input
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    inputMode="email"
+                    value={checkoutEmail}
+                    onChange={(event) => setCheckoutEmail(event.target.value)}
                   />
                 </label>
                 <fieldset className="payment-method">

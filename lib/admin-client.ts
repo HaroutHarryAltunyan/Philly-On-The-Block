@@ -24,6 +24,7 @@ export type Order = {
   orderNumber: string;
   name: string;
   phone: string;
+  email: string;
   address: string;
   fulfillment: "pickup" | "delivery";
   items: OrderLine[];
@@ -77,6 +78,12 @@ export type Coupon = {
   amount: number;
   minSubtotalCents: number;
   active: boolean;
+  createdAt: string;
+};
+
+export type Subscriber = {
+  id: number;
+  email: string;
   createdAt: string;
 };
 

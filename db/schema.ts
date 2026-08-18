@@ -44,6 +44,7 @@ export const orders = sqliteTable(
     name: text("name").notNull(),
     phone: text("phone").notNull(),
     phoneKey: text("phone_key").notNull().default(""),
+    email: text("email").notNull().default(""),
     address: text("address").notNull().default(""),
     fulfillment: text("fulfillment", { enum: ["pickup", "delivery"] }).notNull(),
     items: text("items").notNull(),

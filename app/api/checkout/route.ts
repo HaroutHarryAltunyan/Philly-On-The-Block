@@ -5,9 +5,15 @@ import { orders } from "../../../db/schema";
 import { createCheckoutSession, isStripeConfigured } from "../../../lib/payments";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { buildStripeLineItems, OrderValidationError, parseOrderPayload } from "../../../lib/orders";
-import { allStockDecrementable, computeOrderQuote, releaseStock, reserveStock, validateStock } from "../../../lib/checkout";
+import {
+  allStockDecrementable,
+  computeOrderQuote,
+  markOrderPaid,
+  releaseStock,
+  reserveStock,
+  validateStock,
+} from "../../../lib/checkout";
 import { geocodeAddress } from "../../../lib/tracking";
-import { computePointsEarned } from "../../../lib/points";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
 
 const CHECKOUT_MAX_PER_WINDOW = 10;
@@ -86,6 +92,7 @@ export async function POST(request: Request) {
         name: parsed.name,
         phone: parsed.phone,
         phoneKey: parsed.phoneKey,
+        email: parsed.email,
         address: parsed.address,
         destLat: parsed.destLat,
         destLng: parsed.destLng,
@@ -144,15 +151,10 @@ export async function POST(request: Request) {
     }
 
     if (!isStripeConfigured()) {
-      await db
-        .update(orders)
-        .set({
-          paymentStatus: "paid",
-          paymentMethod: "demo",
-          paidAt: new Date(),
-          pointsEarned: computePointsEarned(parsed.subtotalCents),
-        })
-        .where(eq(orders.id, inserted.id));
+      // Demo checkout: no Stripe session, so the order is already fully
+      // reserved above and markOrderPaid's reservation guard is a no-op — this
+      // just records payment through the same path card orders use.
+      await markOrderPaid(db, inserted.id, "demo");
 
       return Response.json({
         mode: "demo",
@@ -175,6 +177,7 @@ export async function POST(request: Request) {
         orderNumber,
         lines: buildStripeLineItems(parsed),
         feesLineCents: parsed.serviceFeeCents + parsed.deliveryFeeCents + parsed.taxCents,
+        customerEmail: parsed.email || undefined,
         successUrl: `${origin}/?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${origin}/?canceled=1`,
       }));

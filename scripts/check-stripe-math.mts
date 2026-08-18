@@ -9,7 +9,7 @@ function sessionTotalCents(parsedTotals: {
   subtotalCents: number; serviceFeeCents: number; deliveryFeeCents: number; taxCents: number;
   discountCents: number; totalCents: number; lines: OrderLine[];
 }): number {
-  const parsed = { ...parsedTotals, name: "", phone: "", phoneKey: "", address: "", destLat: "", destLng: "", fulfillment: "pickup" as const, notes: "", couponCode: "", pointsRedeemed: 0, pointsDiscountCents: 0 };
+  const parsed = { ...parsedTotals, name: "", phone: "", phoneKey: "", email: "", address: "", destLat: "", destLng: "", fulfillment: "pickup" as const, notes: "", couponCode: "", pointsRedeemed: 0, pointsDiscountCents: 0 };
   const items = buildStripeLineItems(parsed);
   const feesLineCents = parsedTotals.serviceFeeCents + parsedTotals.deliveryFeeCents + parsedTotals.taxCents;
   const itemsTotal = items.reduce((sum, l) => sum + l.amountCents * l.quantity, 0);

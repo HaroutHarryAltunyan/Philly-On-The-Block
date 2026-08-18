@@ -1,10 +1,12 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
+import type Stripe from "stripe";
 import * as schema from "../db/schema";
 import { getSetting } from "./admin-auth";
 import { computeDeliveryFeeCents } from "./delivery-fee";
 import type { CouponInfo, OrderFees, OrderLine, OrderLineInput, OrderTotals } from "./orders";
 import { computeCouponDiscount, computeOrderTotals } from "./orders";
+import { getCheckoutSession, isStripeConfigured } from "./payments";
 import { getCustomerPoints, maxRedeemable, pointsToCents } from "./points";
 
 export async function loadOrderFees(db: DrizzleD1Database<typeof schema>): Promise<OrderFees> {
@@ -371,4 +373,88 @@ export async function markOrderPaid(
     await reserveStock(db, orderId, lines);
   }
   return true;
+}
+
+// Safety net for the two webhooks that finalize a card order:
+// `checkout.session.completed` (marks paid) and `checkout.session.expired`
+// (cancels + releases stock). If either is lost, a card order can linger
+// unpaid with its stock still reserved — or be paid on Stripe yet unpaid in
+// our DB. This sweep reconciles old unpaid card orders against Stripe's ground
+// truth: "complete" -> mark paid, "expired" -> cancel + release, "open" ->
+// still payable, leave alone. Stripe's default Checkout session lifetime is 24h,
+// so anything older than the cutoff that is still unpaid is past that window
+// and safe to reconcile.
+export async function reapLingeringStripeOrders(
+  db: DrizzleD1Database<typeof schema>,
+  options: { maxAgeHours?: number; batchSize?: number } = {},
+): Promise<{ checked: number; markedPaid: number; cancelled: number }> {
+  if (!isStripeConfigured()) {
+    return { checked: 0, markedPaid: 0, cancelled: 0 };
+  }
+  const maxAgeHours = options.maxAgeHours ?? 26;
+  const batchSize = options.batchSize ?? 100;
+  const cutoff = Date.now() - maxAgeHours * 3_600_000;
+
+  const rows = await db
+    .select()
+    .from(schema.orders)
+    .where(
+      and(
+        eq(schema.orders.paymentStatus, "unpaid"),
+        sql`${schema.orders.status} != 'cancelled'`,
+        sql`${schema.orders.stripeSessionId} != ''`,
+        sql`${schema.orders.createdAt} <= ${cutoff}`,
+      ),
+    )
+    .limit(batchSize);
+
+  let checked = 0;
+  let markedPaid = 0;
+  let cancelled = 0;
+
+  for (const order of rows) {
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await getCheckoutSession(order.stripeSessionId);
+    } catch {
+      continue; // transient Stripe error — try again on the next sweep
+    }
+    checked++;
+
+    if (session.status === "complete") {
+      // Paid on Stripe but the completed webhook never landed. Card orders
+      // reserved stock at creation, so markOrderPaid's reservation guard is a
+      // no-op here. Mirror the webhook/success defense-in-depth: log loudly on
+      // a drift between the charged total and the stored order total.
+      if (typeof session.amount_total === "number" && session.amount_total !== order.totalCents) {
+        console.warn(
+          `Reaper: AMOUNT MISMATCH for order ${order.orderNumber} (session ${session.amount_total} vs order ${order.totalCents}) — marking paid, reconcile the difference`,
+        );
+      }
+      const paid = await markOrderPaid(
+        db,
+        order.id,
+        (session.payment_method_types ?? ["card"]).join(", "),
+      );
+      if (paid) markedPaid++;
+    } else if (session.status === "expired") {
+      // Expired on Stripe but the expired webhook never landed. Cancel and
+      // release the reserved stock using the same guarded, atomic steps the
+      // webhook uses so a racing completed event can't cancel a paid order.
+      const [updated] = await db
+        .update(schema.orders)
+        .set({ status: "cancelled" })
+        .where(
+          sql`${schema.orders.id} = ${order.id} AND ${schema.orders.paymentStatus} = 'unpaid' AND ${schema.orders.status} != 'cancelled'`,
+        )
+        .returning();
+      if (updated) {
+        await releaseStock(db, order.id);
+        cancelled++;
+      }
+    }
+    // status === "open" is still payable — leave it alone.
+  }
+
+  return { checked, markedPaid, cancelled };
 }

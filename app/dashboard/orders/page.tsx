@@ -295,6 +295,9 @@ export default function OrdersPage() {
                     <td>
                       {order.name}
                       <div style={{ fontSize: "0.78rem", color: "#5c6b7a" }}>{order.phone}</div>
+                      {order.email && (
+                        <div style={{ fontSize: "0.78rem", color: "#5c6b7a" }}>{order.email}</div>
+                      )}
                       {order.fulfillment === "delivery" && order.address && (
                         <div style={{ fontSize: "0.78rem", color: "#5c6b7a" }}>{order.address}</div>
                       )}
@@ -463,6 +466,9 @@ export default function OrdersPage() {
               <table className="admin-table" style={{ marginBottom: "1rem" }}>
                 <tbody>
                   <tr><td style={{ width: 140 }}><strong>Customer</strong></td><td>{selected.name} · {selected.phone}</td></tr>
+                  {selected.email && (
+                    <tr><td><strong>Email</strong></td><td>{selected.email}</td></tr>
+                  )}
                   <tr><td><strong>Type</strong></td><td>{selected.fulfillment === "delivery" ? `Delivery — ${selected.address}` : "Pickup"}</td></tr>
                   <tr><td><strong>Placed</strong></td><td>{formatTime(selected.createdAt)}</td></tr>
                   <tr><td><strong>Payment method</strong></td><td>{selected.paymentMethod === "demo" ? "Demo (no charge)" : selected.paymentMethod === "cash" ? "Cash in person" : (selected.paymentMethod || "—")}</td></tr>

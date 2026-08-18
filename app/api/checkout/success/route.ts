@@ -36,6 +36,22 @@ export async function GET(request: Request) {
     }
     const order = existing[0];
 
+    // The webhook (or an earlier load of the same session_id) already recorded
+    // the payment: confirm success from the DB instead of re-running Stripe
+    // validation, the amount check and markOrderPaid on every repeat page load.
+    if (order.paymentStatus === "paid" && order.status !== "cancelled") {
+      return Response.json({
+        paid: true,
+        order: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          totalCents: order.totalCents,
+          fulfillment: order.fulfillment,
+          status: order.status,
+        },
+      });
+    }
+
     if (session.payment_status !== "paid") {
       return Response.json(
         { paid: false, error: "Payment not completed" },
