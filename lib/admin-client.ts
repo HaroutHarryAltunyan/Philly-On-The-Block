@@ -87,6 +87,18 @@ export type Subscriber = {
   createdAt: string;
 };
 
+export type Broadcast = {
+  id: number;
+  subject: string;
+  message: string;
+  couponCode: string;
+  recipientCount: number;
+  failedCount: number;
+  status: "sent" | "failed";
+  sentAt: string | null;
+  createdAt: string;
+};
+
 export type Stats = {
   todayOrders: number;
   revenueCents: number;

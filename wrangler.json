@@ -11,6 +11,11 @@
   "triggers": {
     "crons": ["*/15 * * * *"]
   },
+  "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "7377fa1ff7c39132b93b97a8e9b4844b",
+    "EMAIL_FROM": "hello@phillyontheblock.com",
+    "EMAIL_FROM_NAME": "Philly on the Block"
+  },
   "d1_databases": [
     {
       "binding": "DB",

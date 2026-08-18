@@ -128,6 +128,20 @@ const TABLES: Array<{ name: string; ddl: string }> = [
       window_start INTEGER NOT NULL
     )`,
   },
+  {
+    name: "broadcasts",
+    ddl: `CREATE TABLE IF NOT EXISTS broadcasts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      coupon_code TEXT NOT NULL DEFAULT '',
+      recipient_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'sent',
+      sent_at INTEGER,
+      created_at INTEGER NOT NULL
+    )`,
+  },
 ];
 
 const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [

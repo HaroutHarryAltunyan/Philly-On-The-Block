@@ -168,3 +168,18 @@ export const rateLimits = sqliteTable(
     windowStart: integer("window_start").notNull(),
   },
 );
+
+export const broadcasts = sqliteTable(
+  "broadcasts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    subject: text("subject").notNull(),
+    message: text("message").notNull(),
+    couponCode: text("coupon_code").notNull().default(""),
+    recipientCount: integer("recipient_count").notNull().default(0),
+    failedCount: integer("failed_count").notNull().default(0),
+    status: text("status", { enum: ["sent", "failed"] }).notNull(),
+    sentAt: integer("sent_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+);
