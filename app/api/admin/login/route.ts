@@ -10,12 +10,15 @@ import {
   verifyPasscode,
 } from "../../../../lib/admin-auth";
 import { checkRateLimit, clearRateLimit, clientIp, rateLimitResponse } from "../../../../lib/rate-limit";
+import { isCrossOrigin, crossOriginResponse } from "../../../../lib/csrf";
 
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
+    if (isCrossOrigin(request)) return crossOriginResponse();
+
     const payload = (await request.json()) as { passcode?: string };
     const passcode = payload.passcode?.trim() ?? "";
 

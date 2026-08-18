@@ -5,7 +5,10 @@ import { orders } from "../../../db/schema";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
 
-const LOOKUP_MAX_PER_WINDOW = 30;
+// Generous enough for the track page's live polling (a few requests per
+// minute per viewer) without turning the endpoint into an enumeration tool:
+// results still require a matching phone number on every call.
+const LOOKUP_MAX_PER_WINDOW = 120;
 const LOOKUP_WINDOW_MS = 10 * 60 * 1000;
 
 function normalizePhone(value: string): string {

@@ -15,12 +15,15 @@ import {
 } from "../../../lib/checkout";
 import { geocodeAddress } from "../../../lib/tracking";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
+import { isCrossOrigin, crossOriginResponse } from "../../../lib/csrf";
 
 const CHECKOUT_MAX_PER_WINDOW = 10;
 const CHECKOUT_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
+    if (isCrossOrigin(request)) return crossOriginResponse();
+
     const payload = (await request.json()) as Parameters<typeof parseOrderPayload>[0] & {
       paymentMethod?: string;
     };

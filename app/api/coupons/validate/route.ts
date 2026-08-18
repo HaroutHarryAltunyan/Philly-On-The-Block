@@ -5,12 +5,15 @@ import { coupons } from "../../../../db/schema";
 import { computeCouponDiscount, type CouponInfo } from "../../../../lib/orders";
 import { toErrorResponse } from "../../../../lib/admin-routes";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../../lib/rate-limit";
+import { isCrossOrigin, crossOriginResponse } from "../../../../lib/csrf";
 
 const COUPON_MAX_PER_WINDOW = 30;
 const COUPON_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
+    if (isCrossOrigin(request)) return crossOriginResponse();
+
     const payload = (await request.json()) as { code?: string; subtotalCents?: number };
     const code = (payload.code?.trim() ?? "").toUpperCase();
     const subtotalCents = Math.max(Math.round(Number(payload.subtotalCents) || 0), 0);

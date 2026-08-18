@@ -192,6 +192,8 @@ export default function TrackPage() {
 
   function startPolling(selectedNumber: string) {
     stopPolling();
+    // Poll slower than the order-status rate limit (120/10min) so live
+    // tracking never 429s a customer watching their own order.
     const timer = window.setInterval(async () => {
       try {
         const params = new URLSearchParams({ phone });
@@ -204,7 +206,7 @@ export default function TrackPage() {
       } catch {
         // ignore polling errors
       }
-    }, 4000);
+    }, 15000);
     pollTimerRef.current = timer;
   }
 

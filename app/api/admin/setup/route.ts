@@ -2,8 +2,15 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { ensureBootstrap } from "../../../../db/bootstrap";
 import { settings } from "../../../../db/schema";
-import { constantTimeEqual, getSetting, hashPasscode, setSetting } from "../../../../lib/admin-auth";
+import {
+  constantTimeEqual,
+  getSetting,
+  hashPasscode,
+  rotateAdminSessionSecret,
+  setSetting,
+} from "../../../../lib/admin-auth";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../../lib/rate-limit";
+import { isCrossOrigin, crossOriginResponse } from "../../../../lib/csrf";
 import { toErrorResponse } from "../../../../lib/admin-routes";
 
 const SETUP_MAX_PER_WINDOW = 5;
@@ -15,6 +22,8 @@ const SETUP_WINDOW_MS = 10 * 60 * 1000;
 // this endpoint to set the real passcode. The token is consumed on success.
 export async function POST(request: Request) {
   try {
+    if (isCrossOrigin(request)) return crossOriginResponse();
+
     const payload = (await request.json()) as { setupToken?: string; passcode?: string };
     const setupToken = (payload.setupToken ?? "").trim();
     const passcode = payload.passcode;
@@ -41,6 +50,9 @@ export async function POST(request: Request) {
 
     await setSetting(db, "adminPasscodeHash", await hashPasscode(passcode));
     await db.delete(settings).where(eq(settings.key, "setupToken"));
+    // New passcode, new token space: any session issued while the default
+    // passcode was in play (e.g. on a recovery box) is dropped.
+    await rotateAdminSessionSecret(db);
 
     return Response.json({ ok: true });
   } catch (error) {

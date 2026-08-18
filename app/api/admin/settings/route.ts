@@ -1,5 +1,11 @@
 import { AuthError, requireAdmin, toErrorResponse } from "../../../../lib/admin-routes";
-import { getSetting, hashPasscode, passcodeIsDefault, setSetting } from "../../../../lib/admin-auth";
+import {
+  getSetting,
+  hashPasscode,
+  passcodeIsDefault,
+  rotateAdminSessionSecret,
+  setSetting,
+} from "../../../../lib/admin-auth";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -73,6 +79,9 @@ export async function PATCH(request: Request) {
         return Response.json({ error: "passcode must be at least 6 characters" }, { status: 400 });
       }
       await setSetting(db, "adminPasscodeHash", await hashPasscode(passcode));
+      // A leaked or reset passcode may mean live admin sessions are
+      // compromised: rotate the token secret so they stop working now.
+      await rotateAdminSessionSecret(db);
     }
 
     if (payload.fees !== undefined) {

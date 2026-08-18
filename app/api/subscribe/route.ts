@@ -4,12 +4,15 @@ import { ensureBootstrap } from "../../../db/bootstrap";
 import { subscribers } from "../../../db/schema";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
+import { isCrossOrigin, crossOriginResponse } from "../../../lib/csrf";
 
 const SUBSCRIBE_MAX_PER_WINDOW = 10;
 const SUBSCRIBE_WINDOW_MS = 60 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
+    if (isCrossOrigin(request)) return crossOriginResponse();
+
     const payload = (await request.json()) as { email?: string };
     const email = (payload.email?.trim() ?? "").toLowerCase();
 

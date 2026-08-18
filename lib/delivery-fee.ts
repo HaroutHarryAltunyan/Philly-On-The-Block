@@ -5,6 +5,10 @@ import { STORE_LOCATION, milesBetween } from "./tracking";
 const TRUCK_LAT = STORE_LOCATION.latitude;
 const TRUCK_LNG = STORE_LOCATION.longitude;
 const CENTS_PER_MILE = 300;
+// A geocode can resolve outside normal delivery range (wrong zip, another
+// state). Cap the distance so the quoted fee stays sane; drivers decline
+// anything outside their actual range.
+const MAX_BILLABLE_MILES = 20;
 
 export type DeliveryQuote = {
   miles: number;
@@ -22,8 +26,8 @@ export async function computeDeliveryFeeCents(
     { latitude: TRUCK_LAT, longitude: TRUCK_LNG },
     point,
   );
-  // Round up to whole miles for billing
-  const billableMiles = Math.max(Math.ceil(miles), 1);
+  // Round up to whole miles for billing, capped at MAX_BILLABLE_MILES.
+  const billableMiles = Math.min(Math.max(Math.ceil(miles), 1), MAX_BILLABLE_MILES);
   return {
     miles: Math.round(miles * 10) / 10,
     billableMiles,

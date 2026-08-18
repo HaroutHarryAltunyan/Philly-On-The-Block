@@ -47,14 +47,31 @@ export async function hmacSha256(secret: string, message: string): Promise<strin
   return [...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function readAuthSecret(db: Db): Promise<string> {
+async function readSettingValue(db: Db, key: string): Promise<string> {
   await ensureBootstrap(db);
-  const [row] = await db.select().from(settings).where(sql`${settings.key} = 'authSecret'`);
+  const [row] = await db.select().from(settings).where(sql`${settings.key} = ${key}`);
   return row?.value ?? "";
 }
 
+export async function readAuthSecret(db: Db): Promise<string> {
+  return readSettingValue(db, "authSecret");
+}
+
+// Admin session tokens use their own secret so rotating it (on logout or
+// passcode change) invalidates every live admin token server-side without
+// touching driver sessions.
+export async function readAdminSessionSecret(db: Db): Promise<string> {
+  return readSettingValue(db, "adminSessionSecret");
+}
+
+export async function rotateAdminSessionSecret(db: Db): Promise<void> {
+  const secret = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
+  await setSetting(db, "adminSessionSecret", secret);
+}
+
 export async function createSessionToken(db: Db): Promise<string> {
-  const secret = await readAuthSecret(db);
+  const secret = await readAdminSessionSecret(db);
+  if (!secret) throw new Error("Admin session secret is not initialized");
   const payload = base64UrlEncode(JSON.stringify({ exp: Date.now() + SESSION_TTL_MS }));
   const signature = await hmacSha256(secret, payload);
   return `${payload}.${signature}`;
@@ -62,7 +79,7 @@ export async function createSessionToken(db: Db): Promise<string> {
 
 export async function readSessionToken(db: Db, token: string | undefined | null): Promise<boolean> {
   if (!token) return false;
-  const secret = await readAuthSecret(db);
+  const secret = await readAdminSessionSecret(db);
   if (!secret) return false;
 
   const dot = token.lastIndexOf(".");

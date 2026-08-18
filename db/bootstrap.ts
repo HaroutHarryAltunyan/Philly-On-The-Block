@@ -321,6 +321,10 @@ async function bootstrap(db: Db): Promise<void> {
   };
 
   await ensureSetting("authSecret", crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""));
+  await ensureSetting(
+    "adminSessionSecret",
+    crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""),
+  );
   const passcodeSalt = crypto.randomUUID().replaceAll("-", "").slice(0, 16);
   await ensureSetting(
     "adminPasscodeHash",

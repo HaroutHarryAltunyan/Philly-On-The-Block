@@ -5,12 +5,21 @@ import { drivers } from "@/db/schema";
 import { createDriverSessionToken, driverSessionCookieHeader, verifyDriverPassword } from "@/lib/driver-auth";
 import { requestIsSecure } from "@/lib/admin-auth";
 import { checkRateLimit, clearRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { isCrossOrigin, crossOriginResponse } from "@/lib/csrf";
 
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
+// A plausible-looking hash so an unknown phone number still pays a full
+// PBKDF2 verify before the 401 — otherwise response timing reveals which
+// phone numbers have accounts.
+const TIMING_HASH =
+  "pbkdf2$100000$0000000000000000$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
 export async function POST(request: Request) {
   try {
+    if (isCrossOrigin(request)) return crossOriginResponse();
+
     const payload = (await request.json()) as { phone?: string; password?: string };
     const phone = (payload.phone ?? "").trim();
     const password = (payload.password ?? "").trim();
@@ -29,16 +38,18 @@ export async function POST(request: Request) {
     }
 
     const [row] = await db.select().from(drivers).where(eq(drivers.phone, phone)).limit(1);
-    if (!row) {
-      return Response.json({ error: "Driver not found" }, { status: 404 });
-    }
-
-    if (row.status !== "active") {
+    if (row && row.status !== "active") {
       return Response.json({ error: "Driver account is inactive" }, { status: 403 });
     }
 
-    if (!(await verifyDriverPassword(password, row.passwordHash))) {
-      return Response.json({ error: "Wrong password" }, { status: 401 });
+    // Same 401 for "no such driver" and "wrong password" (unknown phones are
+    // verified against a dummy hash so both paths take the same PBKDF2 time),
+    // so the endpoint can't be used to enumerate registered drivers.
+    const passwordOk = row
+      ? await verifyDriverPassword(password, row.passwordHash)
+      : await verifyDriverPassword(password, TIMING_HASH);
+    if (!row || !passwordOk) {
+      return Response.json({ error: "Invalid phone number or password." }, { status: 401 });
     }
 
     await clearRateLimit(db, key);

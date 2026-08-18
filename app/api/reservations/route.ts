@@ -3,6 +3,7 @@ import { ensureBootstrap } from "../../../db/bootstrap";
 import { reservations } from "../../../db/schema";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
+import { isCrossOrigin, crossOriginResponse } from "../../../lib/csrf";
 
 const RESERVATION_MAX_PER_WINDOW = 5;
 const RESERVATION_WINDOW_MS = 60 * 60 * 1000;
@@ -20,6 +21,8 @@ const EVENT_TYPES = [
 
 export async function POST(request: Request) {
   try {
+    if (isCrossOrigin(request)) return crossOriginResponse();
+
     const payload = (await request.json()) as {
       name?: string;
       email?: string;

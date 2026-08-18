@@ -1,11 +1,15 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/bootstrap";
+import { requestIsLocal } from "./admin-auth";
 
 export function clientIp(request: Request): string {
   const cf = request.headers.get("cf-connecting-ip");
   if (cf) return cf;
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || "unknown";
+  // Never trust client-supplied X-Forwarded-For: on non-Cloudflare hosts it
+  // is spoofable and would let attackers bypass per-IP limits. Local dev
+  // gets a single stable key instead.
+  if (requestIsLocal(request)) return "localhost";
+  return "unknown";
 }
 
 type RateLimitResult = { allowed: boolean; retryAfterMs: number };
@@ -39,7 +43,9 @@ export async function checkRateLimit(
       retryAfterMs: Math.max(row.window_start + windowMs - now, 0),
     };
   } catch {
-    return { allowed: true, retryAfterMs: 0 };
+    // Fail closed: if the limiter itself can't write, refuse the (usually
+    // unauthenticated, mutation) request rather than leaving it unlimited.
+    return { allowed: false, retryAfterMs: 60_000 };
   }
 }
 
