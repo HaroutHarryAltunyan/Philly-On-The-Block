@@ -2,7 +2,9 @@ import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 
-export const POINTS_PER_DOLLAR = 1;
+// Earning rate: 4 points per $1 = $1 in points per $25 spent (each point is
+// worth 1 cent, so $25 -> 100 points -> $1 off).
+export const POINTS_PER_DOLLAR = 4;
 export const POINTS_TO_CENTS = 1;
 
 export function normalizePhone(value: string): string {

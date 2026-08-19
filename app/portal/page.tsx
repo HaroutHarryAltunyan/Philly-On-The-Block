@@ -75,7 +75,7 @@ export default function PortalPage() {
         <span style={{ color: "#3a6ea5", fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase" }}>Philly on the Block</span>
         <h1 style={{ fontSize: "2.2rem", letterSpacing: "-0.02em", margin: "0.25rem 0 0.5rem" }}>Your block points.</h1>
         <p style={{ color: "#5c6b7a", marginTop: 0 }}>
-          Earn <strong>1 point per $1</strong> on every order, then redeem <strong>100 points = $1 off</strong> at checkout.
+          Earn <strong>4 points per $1</strong> on every order (that’s <strong>$1 off per $25</strong>), then redeem <strong>100 points = $1 off</strong> at checkout.
         </p>
 
         <form

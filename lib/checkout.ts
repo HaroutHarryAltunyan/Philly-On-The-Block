@@ -7,7 +7,7 @@ import { computeDeliveryFeeCents } from "./delivery-fee";
 import type { CouponInfo, OrderFees, OrderLine, OrderLineInput, OrderTotals } from "./orders";
 import { computeCouponDiscount, computeOrderTotals } from "./orders";
 import { getCheckoutSession, isStripeConfigured } from "./payments";
-import { getCustomerPoints, maxRedeemable, pointsToCents } from "./points";
+import { getCustomerPoints, maxRedeemable, POINTS_PER_DOLLAR, pointsToCents } from "./points";
 
 export async function loadOrderFees(db: DrizzleD1Database<typeof schema>): Promise<OrderFees> {
   const read = async (key: string, fallback: number): Promise<number> => {
@@ -351,7 +351,7 @@ export async function markOrderPaid(
       paymentStatus: "paid",
       paymentMethod,
       paidAt: new Date(),
-      pointsEarned: sql`CAST(${schema.orders.subtotalCents} / 100 AS INTEGER)`,
+      pointsEarned: sql`CAST(${schema.orders.subtotalCents} / 100 AS INTEGER) * ${POINTS_PER_DOLLAR}`,
     })
     .where(
       sql`${schema.orders.id} = ${orderId} AND ${schema.orders.paymentStatus} != 'paid' AND ${schema.orders.status} != 'cancelled'`,
