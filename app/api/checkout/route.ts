@@ -3,6 +3,7 @@ import { getDb } from "../../../db";
 import { ensureBootstrap } from "../../../db/bootstrap";
 import { orders } from "../../../db/schema";
 import { createCheckoutSession, isStripeConfigured } from "../../../lib/payments";
+import { CARD_PAYMENTS_ENABLED } from "../../../lib/payment-config";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { buildStripeLineItems, OrderValidationError, parseOrderPayload } from "../../../lib/orders";
 import {
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
     const isDelivery = payload.fulfillment === "delivery";
     // Cash orders are placed unpaid and stay that way until staff (or the
     // driver) confirms the money was collected in person.
-    const payCash = payload.paymentMethod === "cash";
+    // With card payments switched off, every order is a cash order.
+    const payCash = !CARD_PAYMENTS_ENABLED || payload.paymentMethod === "cash";
 
     const parsed = parseOrderPayload(
       {

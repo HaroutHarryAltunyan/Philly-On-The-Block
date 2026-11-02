@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, us
 import { trackAddToCart, trackPurchase } from "../lib/fbq";
 import SiteHeader from "./components/site-header";
 import { getBusinessStatus, formatClock } from "../lib/hours";
+import { CARD_PAYMENTS_ENABLED } from "../lib/payment-config";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
 
@@ -91,7 +92,7 @@ const restaurantSchema = {
   servesCuisine: ["American", "Cheesesteaks", "Sandwiches"],
   priceRange: "$$",
   currenciesAccepted: "USD",
-  paymentAccepted: "Cash, Credit Card",
+  paymentAccepted: CARD_PAYMENTS_ENABLED ? "Cash, Credit Card" : "Cash",
   acceptsReservations: "True",
   keywords: [
     "cheesesteaks",
@@ -167,7 +168,7 @@ export default function Home() {
   const [selectedOptions, setSelectedOptions] = useState<Record<number, boolean>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "checkout" | "success">("cart");
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">(CARD_PAYMENTS_ENABLED ? "card" : "cash");
   const [cashTotal, setCashTotal] = useState<number | null>(null);
   const [quote, setQuote] = useState<CheckoutQuote | null>(null);
   const [businessStatus, setBusinessStatus] = useState({ open: false, label: "View today’s hours" });
@@ -827,7 +828,7 @@ export default function Home() {
     setCartOpen(false);
     setOrderNumber("");
     setOrderError("");
-    setPaymentMethod("card");
+    setPaymentMethod(CARD_PAYMENTS_ENABLED ? "card" : "cash");
     setCashTotal(null);
     setQuote(null);
     removeCoupon();
@@ -1049,7 +1050,7 @@ export default function Home() {
                 <fieldset className="payment-method">
                   <legend>How will you pay?</legend>
                   <div className="payment-options">
-                    {([["card", "Pay by card"], ["cash", "Cash in person"]] as const).map(([value, label]) => (
+                    {(CARD_PAYMENTS_ENABLED ? ([["card", "Pay by card"], ["cash", "Cash in person"]] as const) : ([["cash", "Cash in person"]] as const)).map(([value, label]) => (
                       <button
                         key={value}
                         type="button"
