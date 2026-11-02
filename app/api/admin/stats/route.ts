@@ -1,14 +1,15 @@
 import { and, asc, desc, gte, inArray, lt } from "drizzle-orm";
 import { orders, reservations } from "../../../../db/schema";
 import { AuthError, requireAdmin, toErrorResponse } from "../../../../lib/admin-routes";
+import { restaurantDayBounds } from "../../../../lib/hours";
 
 export async function GET(request: Request) {
   try {
     const db = await requireAdmin(request);
 
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    // "Today" is the restaurant's calendar day, not the Worker's (UTC).
+    const { start: startOfDay, end: endOfDay } = restaurantDayBounds(now);
 
     const todayOrders = await db
       .select()
@@ -42,10 +43,18 @@ export async function GET(request: Request) {
       .orderBy(asc(reservations.dateTime))
       .limit(5);
 
+    const live = todayOrders.filter((order) => order.status !== "cancelled");
+    const sumWhere = (pred: (order: (typeof live)[number]) => boolean) =>
+      live.filter(pred).reduce((sum, order) => sum + order.totalCents, 0);
+
     return Response.json({
       stats: {
         todayOrders: todayOrders.length,
         revenueCents,
+        cashCents: sumWhere((o) => o.paymentStatus === "paid" && o.paymentMethod === "cash"),
+        cardCents: sumWhere((o) => o.paymentStatus === "paid" && o.paymentMethod === "card_in_person"),
+        dueCents: sumWhere((o) => o.paymentStatus === "unpaid"),
+        completedDeliveries: live.filter((o) => o.fulfillment === "delivery" && o.status === "completed").length,
         activeOrders: activeOrders.length,
         pendingReservations: pendingReservations.length,
         recentOrders: recentOrders.map((order) => ({

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { sha256Hex, type Db } from "../db/bootstrap";
 import { drivers } from "../db/schema";
 import {
@@ -17,11 +17,13 @@ export const DRIVER_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const PBKDF2_ITERATIONS = 100_000;
 
-export type DriverSession = { id: number; exp: number };
+export type DriverSession = { id: number; exp: number; v: number };
 
-export async function createDriverSessionToken(db: Db, driverId: number): Promise<string> {
+export async function createDriverSessionToken(db: Db, driverId: number, sessionVersion = 0): Promise<string> {
   const secret = await readAuthSecret(db);
-  const payload = base64UrlEncode(JSON.stringify({ id: driverId, exp: Date.now() + DRIVER_SESSION_TTL_MS }));
+  const payload = base64UrlEncode(
+    JSON.stringify({ id: driverId, exp: Date.now() + DRIVER_SESSION_TTL_MS, v: sessionVersion }),
+  );
   const signature = await hmacSha256(secret, payload);
   return `${payload}.${signature}`;
 }
@@ -40,11 +42,11 @@ export async function readDriverSession(request: Request, db: Db): Promise<Drive
   if (!constantTimeEqual(await hmacSha256(secret, payload), signature)) return null;
 
   try {
-    const decoded = JSON.parse(base64UrlDecode(payload)) as { id?: number; exp?: number };
+    const decoded = JSON.parse(base64UrlDecode(payload)) as { id?: number; exp?: number; v?: number };
     if (typeof decoded.id !== "number" || typeof decoded.exp !== "number" || decoded.exp <= Date.now()) {
       return null;
     }
-    return { id: decoded.id, exp: decoded.exp };
+    return { id: decoded.id, exp: decoded.exp, v: typeof decoded.v === "number" ? decoded.v : 0 };
   } catch {
     return null;
   }
@@ -68,7 +70,17 @@ export async function getActiveDriverFromRequest(request: Request, db: Db) {
   if (!session) return null;
   const driver = await getDriver(db, session.id);
   if (!driver || driver.status !== "active") return null;
+  // A bumped session version (logout, password change, deactivation)
+  // invalidates every token issued before it.
+  if (driver.sessionVersion !== session.v) return null;
   return driver;
+}
+
+export async function bumpDriverSessionVersion(db: Db, driverId: number): Promise<void> {
+  await db
+    .update(drivers)
+    .set({ sessionVersion: sql`${drivers.sessionVersion} + 1`, online: false })
+    .where(eq(drivers.id, driverId));
 }
 
 async function pbkdf2(password: string, salt: string, iterations: number): Promise<Uint8Array> {

@@ -72,7 +72,9 @@ export async function rotateAdminSessionSecret(db: Db): Promise<void> {
 export async function createSessionToken(db: Db): Promise<string> {
   const secret = await readAdminSessionSecret(db);
   if (!secret) throw new Error("Admin session secret is not initialized");
-  const payload = base64UrlEncode(JSON.stringify({ exp: Date.now() + SESSION_TTL_MS }));
+  const payload = base64UrlEncode(
+    JSON.stringify({ exp: Date.now() + SESSION_TTL_MS, jti: crypto.randomUUID().replaceAll("-", "") }),
+  );
   const signature = await hmacSha256(secret, payload);
   return `${payload}.${signature}`;
 }
@@ -90,12 +92,32 @@ export async function readSessionToken(db: Db, token: string | undefined | null)
   const expected = await hmacSha256(secret, payload);
   if (!constantTimeEqual(expected, signature)) return false;
 
+  let claims: { exp?: number; jti?: string };
   try {
-    const { exp } = JSON.parse(base64UrlDecode(payload)) as { exp?: number };
-    return typeof exp === "number" && exp > Date.now();
+    claims = JSON.parse(base64UrlDecode(payload)) as { exp?: number; jti?: string };
   } catch {
     return false;
   }
+  if (typeof claims.exp !== "number" || claims.exp <= Date.now()) return false;
+  if (claims.jti) {
+    const revoked = (await db.run(sql`SELECT 1 FROM revoked_sessions WHERE jti = ${claims.jti} LIMIT 1`)) as unknown as {
+      results?: unknown[];
+    };
+    if ((revoked.results?.length ?? 0) > 0) return false;
+  }
+  return true;
+}
+
+// Revokes one admin session token (this device only). Expired rows are
+// pruned on the way so the table stays small.
+export async function revokeSessionToken(db: Db, token: string): Promise<boolean> {
+  if (!(await readSessionToken(db, token))) return false;
+  const payload = token.slice(0, token.lastIndexOf("."));
+  const { exp, jti } = JSON.parse(base64UrlDecode(payload)) as { exp: number; jti?: string };
+  if (!jti) return false; // legacy token without an id: caller falls back to rotation
+  await db.run(sql`DELETE FROM revoked_sessions WHERE expires_at < ${Date.now()}`);
+  await db.run(sql`INSERT OR IGNORE INTO revoked_sessions (jti, expires_at) VALUES (${jti}, ${exp})`);
+  return true;
 }
 
 export function readCookie(request: Request, name: string): string | undefined {

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
 import { drivers } from "@/db/schema";
 import { hashDriverPassword } from "@/lib/driver-auth";
 import { AuthError, requireAdmin } from "@/lib/admin-routes";
@@ -25,7 +25,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const payload = (await request.json()) as { name?: string; phone?: string; password?: string; status?: string };
-    const updates: Record<string, string> = {};
+    const updates: Record<string, string | boolean | SQL> = {};
 
     if (payload.name !== undefined) {
       const name = payload.name.trim();
@@ -56,6 +56,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         return Response.json({ error: "password must be at least 6 characters" }, { status: 400 });
       }
       updates.passwordHash = await hashDriverPassword(password);
+    }
+    // Password change or deactivation signs the driver out everywhere.
+    if (updates.passwordHash !== undefined || updates.status === "inactive") {
+      updates.sessionVersion = sql`${drivers.sessionVersion} + 1`;
+      updates.online = false;
     }
 
     if (Object.keys(updates).length === 0) {

@@ -41,6 +41,7 @@ function toOrderJson(order: {
   pointsEarned: number;
   pointsRedeemed: number;
   pointsDiscountCents: number;
+  deliveryPin: string;
 }) {
   return {
     id: order.id,
@@ -67,6 +68,8 @@ function toOrderJson(order: {
     driverLat: order.driverLat,
     driverLng: order.driverLng,
     driverUpdatedAt: order.driverUpdatedAt,
+    // Proof-of-delivery code for the phone-verified customer to read to the driver.
+    deliveryPin: order.deliveryPin,
   };
 }
 

@@ -113,6 +113,13 @@ const TABLES: Array<{ name: string; ddl: string }> = [
     )`,
   },
   {
+    name: "revoked_sessions",
+    ddl: `CREATE TABLE IF NOT EXISTS revoked_sessions (
+      jti TEXT PRIMARY KEY NOT NULL,
+      expires_at INTEGER NOT NULL
+    )`,
+  },
+  {
     name: "subscribers",
     ddl: `CREATE TABLE IF NOT EXISTS subscribers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,6 +260,26 @@ const COLUMN_UPGRADES: Array<{ table: string; column: string; ddl: string }> = [
     table: "reservations",
     column: "email",
     ddl: "ALTER TABLE reservations ADD COLUMN email TEXT NOT NULL DEFAULT ''",
+  },
+  {
+    table: "drivers",
+    column: "session_version",
+    ddl: "ALTER TABLE drivers ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "drivers",
+    column: "online",
+    ddl: "ALTER TABLE drivers ADD COLUMN online INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "drivers",
+    column: "online_at",
+    ddl: "ALTER TABLE drivers ADD COLUMN online_at INTEGER",
+  },
+  {
+    table: "orders",
+    column: "delivery_pin",
+    ddl: "ALTER TABLE orders ADD COLUMN delivery_pin TEXT NOT NULL DEFAULT ''",
   },
   {
     table: "reservations",

@@ -14,6 +14,8 @@ export async function GET(request: Request) {
         name: driver.name,
         phone: driver.phone,
         status: driver.status,
+        online: driver.online,
+        onlineAt: driver.onlineAt,
         createdAt: driver.createdAt,
       })),
     });

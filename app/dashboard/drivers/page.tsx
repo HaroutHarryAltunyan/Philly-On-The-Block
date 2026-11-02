@@ -83,6 +83,7 @@ export default function DriverDashboard() {
     o.fulfillment === "delivery" &&
     ["new", "preparing", "ready"].includes(o.status)
   );
+  // Unassigned orders arrive without customer details until claimed.
 
   async function claimOrder(orderId: number) {
     if (!session.authenticated) return;
@@ -230,9 +231,13 @@ export default function DriverDashboard() {
                   <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#007404" }}>{money(order.totalCents)}</div>
                 </div>
 
-                <div style={{ fontSize: "0.88rem", color: "#5c6b7a", marginBottom: "0.6rem" }}>
-                  <strong style={{ color: "#0b0b0d" }}>{order.name}</strong> · {order.phone}
-                </div>
+                {order.name ? (
+                  <div style={{ fontSize: "0.88rem", color: "#5c6b7a", marginBottom: "0.6rem" }}>
+                    <strong style={{ color: "#0b0b0d" }}>{order.name}</strong>{order.phone ? ` · ${order.phone}` : ""}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "0.88rem", color: "#5c6b7a", marginBottom: "0.6rem" }}>Customer details show after you claim it.</div>
+                )}
                 {order.address && (
                   <div style={{ fontSize: "0.85rem", color: "#5c6b7a", marginBottom: "0.75rem", paddingLeft: "0.5rem", borderLeft: "3px solid #badaff" }}>
                     📍 {order.address}
@@ -240,7 +245,7 @@ export default function DriverDashboard() {
                 )}
 
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {activeTab === "my" && order.status !== "delivering" && order.status !== "completed" && (
+                  {activeTab === "my" && (order.status === "preparing" || order.status === "ready") && (
                     <button
                       onClick={() => startDelivery(order)}
                       style={{

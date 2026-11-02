@@ -5,6 +5,10 @@ import { orders } from "@/db/schema";
 import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
 import { restoreOrderStock } from "@/lib/checkout";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
+import { checkRateLimit, clearRateLimit } from "@/lib/rate-limit";
+
+const PIN_MAX_ATTEMPTS = 8;
+const PIN_WINDOW_MS = 10 * 60 * 1000;
 
 const STATUSES = ["new", "preparing", "ready", "delivering", "completed", "cancelled"] as const;
 type OrderStatus = (typeof STATUSES)[number];
@@ -23,7 +27,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       return Response.json({ error: "Invalid order id" }, { status: 400 });
     }
 
-    const payload = (await request.json()) as { status?: string };
+    const payload = (await request.json()) as { status?: string; pin?: string };
     if (!payload.status || !STATUSES.includes(payload.status as (typeof STATUSES)[number])) {
       return Response.json(
         { error: `status must be one of: ${STATUSES.join(", ")}` },
@@ -49,6 +53,28 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const allowedFrom = DRIVER_TRANSITIONS[payload.status];
       if (!allowedFrom) {
         return Response.json({ error: "Drivers can only mark orders out for delivery or delivered" }, { status: 403 });
+      }
+      if (!allowedFrom.includes(order.status)) {
+        return Response.json(
+          { error: `Order is ${order.status}; it can't be marked ${payload.status} now` },
+          { status: 409 },
+        );
+      }
+      // Proof of delivery: the customer reads their 4-digit code to the
+      // driver. Attempts are rate limited so the code can't be brute-forced.
+      if (payload.status === "completed" && order.deliveryPin) {
+        const limited = await checkRateLimit(driverDb, `delivery-pin:${orderId}`, PIN_MAX_ATTEMPTS, PIN_WINDOW_MS);
+        if (!limited.allowed) {
+          return Response.json({ error: "Too many wrong codes. Call the restaurant." }, { status: 429 });
+        }
+        const pin = String(payload.pin ?? "").replace(/\D/g, "");
+        if (!pin) {
+          return Response.json({ error: "Enter the 4-digit delivery code from the customer.", code: "pin_required" }, { status: 422 });
+        }
+        if (pin !== order.deliveryPin) {
+          return Response.json({ error: "That delivery code doesn't match. Ask the customer to check their app.", code: "pin_mismatch" }, { status: 422 });
+        }
+        await clearRateLimit(driverDb, `delivery-pin:${orderId}`);
       }
       // Conditional update so a stale client can't overwrite a status that
       // changed underneath it (e.g. staff cancelled the order meanwhile).

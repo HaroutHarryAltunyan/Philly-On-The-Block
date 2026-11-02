@@ -21,6 +21,11 @@ import { isCrossOrigin, crossOriginResponse } from "../../../lib/csrf";
 const CHECKOUT_MAX_PER_WINDOW = 10;
 const CHECKOUT_WINDOW_MS = 10 * 60 * 1000;
 
+function randomDeliveryPin(): string {
+  const [n] = crypto.getRandomValues(new Uint32Array(1));
+  return String(n % 10_000).padStart(4, "0");
+}
+
 export async function POST(request: Request) {
   try {
     if (isCrossOrigin(request)) return crossOriginResponse();
@@ -119,6 +124,7 @@ export async function POST(request: Request) {
         paymentStatus: "unpaid",
         paymentMethod: payCash ? "cash" : "",
         stripeSessionId: "",
+        deliveryPin: parsed.fulfillment === "delivery" ? randomDeliveryPin() : "",
         createdAt: new Date(),
       })
       .returning();

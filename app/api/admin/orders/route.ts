@@ -35,6 +35,49 @@ function withDriverLocationFallback(rows: OrderRow[]): OrderRow[] {
   });
 }
 
+// What a driver may see about an order before accepting it: enough to decide
+// (area, size, total, timing), nothing that identifies or locates the customer.
+function redactForUnassignedDriver(order: OrderRow) {
+  const parts = order.address.split(",").map((part) => part.trim()).filter(Boolean);
+  const area = parts.length > 1 ? parts.slice(1).join(", ") : "";
+  const round = (value: string) => (value && Number.isFinite(Number(value)) ? Number(value).toFixed(2) : "");
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    name: "",
+    phone: "",
+    email: "",
+    address: area,
+    notes: "",
+    fulfillment: order.fulfillment,
+    items: JSON.parse(order.items) as unknown,
+    subtotalCents: order.subtotalCents,
+    serviceFeeCents: order.serviceFeeCents,
+    deliveryFeeCents: order.deliveryFeeCents,
+    taxCents: order.taxCents,
+    discountCents: order.discountCents,
+    couponCode: "",
+    totalCents: order.totalCents,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    driverId: null,
+    // ~1 km precision: shows the neighborhood on a map, not the house.
+    destLat: round(order.destLat),
+    destLng: round(order.destLng),
+    driverLat: "",
+    driverLng: "",
+    driverUpdatedAt: null,
+    deliveryPin: "",
+    pointsEarned: 0,
+    pointsRedeemed: 0,
+    pointsDiscountCents: 0,
+    paidAt: null,
+    createdAt: order.createdAt,
+    redacted: true,
+  };
+}
+
 export async function GET(request: Request) {
   try {
     const db = await requireAdmin(request).catch(() => null);
@@ -46,18 +89,27 @@ export async function GET(request: Request) {
       if (!driver) {
         return Response.json({ error: "Not authenticated" }, { status: 401 });
       }
+      // Drivers get (a) their own orders in full and (b) unassigned delivery
+      // orders they could claim, with customer identity and street address
+      // withheld until they accept. Other drivers' orders are not returned.
       const rows = await driverDb
         .select()
         .from(orders)
-        .where(sql`${orders.fulfillment} = 'delivery'`)
+        .where(
+          sql`${orders.fulfillment} = 'delivery' AND (
+            ${orders.driverId} = ${driver.id}
+            OR (${orders.driverId} IS NULL AND ${orders.status} IN ('new', 'preparing', 'ready'))
+          )`,
+        )
         .orderBy(desc(orders.createdAt), desc(orders.id))
         .limit(100);
 
       return Response.json({
-        orders: withDriverLocationFallback(rows).map((order) => ({
-          ...order,
-          items: JSON.parse(order.items) as unknown,
-        })),
+        orders: withDriverLocationFallback(rows).map((order) =>
+          order.driverId === driver.id
+            ? { ...order, items: JSON.parse(order.items) as unknown }
+            : redactForUnassignedDriver(order),
+        ),
       });
     }
 

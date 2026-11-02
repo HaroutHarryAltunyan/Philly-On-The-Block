@@ -1,25 +1,20 @@
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
-import { getDriver, readDriverSession } from "@/lib/driver-auth";
+import { getActiveDriverFromRequest } from "@/lib/driver-auth";
 
 export async function GET(request: Request) {
   try {
     const db = getDb();
     await ensureBootstrap(db);
 
-    const session = await readDriverSession(request, db);
-    if (!session) {
-      return Response.json({ authenticated: false });
-    }
-
-    const driver = await getDriver(db, session.id);
-    if (!driver || driver.status !== "active") {
+    const driver = await getActiveDriverFromRequest(request, db);
+    if (!driver) {
       return Response.json({ authenticated: false });
     }
 
     return Response.json({
       authenticated: true,
-      driver: { id: driver.id, name: driver.name, phone: driver.phone },
+      driver: { id: driver.id, name: driver.name, phone: driver.phone, online: driver.online },
     });
   } catch {
     return Response.json({ authenticated: false });

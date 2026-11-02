@@ -82,6 +82,9 @@ export const orders = sqliteTable(
     // restore exactly this list — never the full item list, or lines that were
     // never decremented (e.g. sold out at payment time) would be inflated.
     stockDecremented: text("stock_decremented").notNull().default(""),
+    // 4-digit proof-of-delivery code shown to the customer; the driver must
+    // enter it to mark a delivery complete. Empty for pickup/legacy orders.
+    deliveryPin: text("delivery_pin").notNull().default(""),
     paidAt: integer("paid_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
@@ -145,6 +148,11 @@ export const drivers = sqliteTable(
     phone: text("phone").notNull(),
     passwordHash: text("password_hash").notNull(),
     status: text("status", { enum: ["active", "inactive"] }).notNull().default("active"),
+    // Bumped on logout, password change and deactivation; tokens carry the
+    // version they were issued at, so bumping it revokes every live session.
+    sessionVersion: integer("session_version").notNull().default(0),
+    online: integer("online", { mode: "boolean" }).notNull().default(false),
+    onlineAt: integer("online_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (table) => [uniqueIndex("drivers_phone_idx").on(table.phone)],
@@ -183,3 +191,10 @@ export const broadcasts = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
 );
+
+// Individually revoked admin session tokens (e.g. a staff phone signing out)
+// so one device can sign out without rotating every staff session.
+export const revokedSessions = sqliteTable("revoked_sessions", {
+  jti: text("jti").primaryKey(),
+  expiresAt: integer("expires_at").notNull(),
+});

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders, drivers } from "@/db/schema";
@@ -49,11 +49,22 @@ export async function POST(request: Request) {
       return Response.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // Single conditional UPDATE: only one driver can win an unassigned order.
     const [updated] = await db
       .update(orders)
       .set({ driverId: driver.id })
-      .where(and(eq(orders.id, payload.orderId), eq(orders.status, "new")))
+      .where(
+        and(
+          eq(orders.id, payload.orderId),
+          isNull(orders.driverId),
+          eq(orders.fulfillment, "delivery"),
+          inArray(orders.status, ["new", "preparing", "ready"]),
+        ),
+      )
       .returning();
+    if (updated && !driver.online) {
+      await db.update(drivers).set({ online: true, onlineAt: new Date() }).where(eq(drivers.id, driver.id));
+    }
 
     if (!updated) {
       return Response.json({ error: "Order not available for claiming" }, { status: 409 });

@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     await clearRateLimit(db, key);
-    const token = await createDriverSessionToken(db, row.id);
+    const token = await createDriverSessionToken(db, row.id, row.sessionVersion);
     return Response.json(
       {
         authenticated: true,

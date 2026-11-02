@@ -49,6 +49,7 @@ export default function DrivingPage() {
     longitude: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deliveryPin, setDeliveryPin] = useState("");
   const watchIdRef = useRef<number | null>(null);
   const pingTimerRef = useRef<number | null>(null);
   const hasFixRef = useRef(false);
@@ -274,12 +275,13 @@ export default function DrivingPage() {
 
   async function markDelivered() {
     if (!orderId) return;
-    stopSharing();
+    setError("");
     try {
       await api<{ order: OrderInfo }>(`/api/admin/orders/${orderId}`, {
         method: "PATCH",
-        body: JSON.stringify({ status: "completed" }),
+        body: JSON.stringify({ status: "completed", pin: deliveryPin }),
       });
+      stopSharing();
       router.push(driver.authenticated === true ? "/dashboard/drivers" : "/dashboard/orders");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to mark delivered");
@@ -373,6 +375,17 @@ export default function DrivingPage() {
               >
                 Stop sharing
               </button>
+            )}
+            {order && order.status === "delivering" && driver.authenticated === true && (
+              <input
+                aria-label="Delivery code from the customer"
+                placeholder="Customer's 4-digit code"
+                inputMode="numeric"
+                maxLength={4}
+                value={deliveryPin}
+                onChange={(event) => setDeliveryPin(event.target.value.replace(/\D/g, ""))}
+                style={{ border: "2px solid #0b0b0d", borderRadius: 8, padding: "0.5rem 0.75rem", fontFamily: "inherit", fontWeight: 700, width: "13rem" }}
+              />
             )}
             {order && order.status === "delivering" && (
               <button

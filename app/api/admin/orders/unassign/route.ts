@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       }
       const [updated] = await driverDb
         .update(orders)
-        .set({ driverId: null, status: "ready" })
+        .set({ driverId: null, status: sql`CASE WHEN ${orders.status} = 'delivering' THEN 'ready' ELSE ${orders.status} END` })
         .where(eq(orders.id, payload.orderId))
         .returning();
       if (!updated) return Response.json({ error: "Order not found" }, { status: 404 });
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     const [updated] = await db
       .update(orders)
-      .set({ driverId: null, status: "ready" })
+      .set({ driverId: null, status: sql`CASE WHEN ${orders.status} = 'delivering' THEN 'ready' ELSE ${orders.status} END` })
       .where(eq(orders.id, payload.orderId))
       .returning();
 
