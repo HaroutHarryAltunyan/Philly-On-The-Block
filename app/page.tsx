@@ -92,7 +92,7 @@ const restaurantSchema = {
   servesCuisine: ["American", "Cheesesteaks", "Sandwiches"],
   priceRange: "$$",
   currenciesAccepted: "USD",
-  paymentAccepted: CARD_PAYMENTS_ENABLED ? "Cash, Credit Card" : "Cash",
+  paymentAccepted: "Cash, Credit Card",
   acceptsReservations: "True",
   keywords: [
     "cheesesteaks",
@@ -1008,7 +1008,7 @@ export default function Home() {
                 <div className="order-number"><span>Order</span><strong>{orderNumber || "#PTB-000"}</strong></div>
                 <p className="success-copy">Your {fulfillment.toLowerCase()} window is approximately 20–25 minutes.</p>
                 {cashTotal !== null && (
-                  <p className="success-copy cash-note">Please pay {money(cashTotal / 100)} in person at {fulfillment === "Delivery" ? "delivery" : "pickup"}.</p>
+                  <p className="success-copy cash-note">Please pay {money(cashTotal / 100)} (cash or card) in person at {fulfillment === "Delivery" ? "delivery" : "pickup"}.</p>
                 )}
                 <button type="button" className="button button-dark" onClick={resetOrder}>Start another order</button>
               </div>
@@ -1050,7 +1050,7 @@ export default function Home() {
                 <fieldset className="payment-method">
                   <legend>How will you pay?</legend>
                   <div className="payment-options">
-                    {(CARD_PAYMENTS_ENABLED ? ([["card", "Pay by card"], ["cash", "Cash in person"]] as const) : ([["cash", "Cash in person"]] as const)).map(([value, label]) => (
+                    {(CARD_PAYMENTS_ENABLED ? ([["card", "Pay by card"], ["cash", "Pay in person (cash or card)"]] as const) : ([["cash", "Pay in person (cash or card)"]] as const)).map(([value, label]) => (
                       <button
                         key={value}
                         type="button"

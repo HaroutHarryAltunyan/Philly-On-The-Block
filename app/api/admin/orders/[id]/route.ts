@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
@@ -7,6 +7,13 @@ import { restoreOrderStock } from "@/lib/checkout";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
 
 const STATUSES = ["new", "preparing", "ready", "delivering", "completed", "cancelled"] as const;
+type OrderStatus = (typeof STATUSES)[number];
+
+// Status a driver may set -> statuses the order must currently be in.
+const DRIVER_TRANSITIONS: Partial<Record<string, OrderStatus[]>> = {
+  delivering: ["preparing", "ready"],
+  completed: ["ready", "delivering"],
+};
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -37,14 +44,30 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       if (!order || order.driverId !== driver.id) {
         return Response.json({ error: "Not authorized" }, { status: 403 });
       }
+      // Drivers only move an order forward through the delivery leg; the
+      // kitchen statuses, cancellation and reversals stay with staff.
+      const allowedFrom = DRIVER_TRANSITIONS[payload.status];
+      if (!allowedFrom) {
+        return Response.json({ error: "Drivers can only mark orders out for delivery or delivered" }, { status: 403 });
+      }
+      // Conditional update so a stale client can't overwrite a status that
+      // changed underneath it (e.g. staff cancelled the order meanwhile).
       const [updated] = await driverDb
         .update(orders)
         .set({ status: payload.status as (typeof STATUSES)[number] })
-        .where(eq(orders.id, orderId))
+        .where(
+          and(
+            eq(orders.id, orderId),
+            eq(orders.driverId, driver.id),
+            inArray(orders.status, allowedFrom),
+          ),
+        )
         .returning();
-      if (!updated) return Response.json({ error: "Order not found" }, { status: 404 });
-      if (payload.status === "cancelled") {
-        await restoreOrderStock(driverDb, updated);
+      if (!updated) {
+        return Response.json(
+          { error: `Order is ${order.status}; it can't be marked ${payload.status} now` },
+          { status: 409 },
+        );
       }
       return Response.json({ order: { ...updated, items: JSON.parse(updated.items) as unknown } });
     }

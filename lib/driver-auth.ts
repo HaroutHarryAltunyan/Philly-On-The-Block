@@ -9,7 +9,7 @@ import {
   constantTimeEqual,
   hmacSha256,
   readAuthSecret,
-  readCookie,
+  readSessionCredential,
 } from "./admin-auth";
 
 export const DRIVER_COOKIE = "otb_driver_session";
@@ -27,7 +27,7 @@ export async function createDriverSessionToken(db: Db, driverId: number): Promis
 }
 
 export async function readDriverSession(request: Request, db: Db): Promise<DriverSession | null> {
-  const token = readCookie(request, DRIVER_COOKIE);
+  const token = readSessionCredential(request, DRIVER_COOKIE);
   if (!token) return null;
   const secret = await readAuthSecret(db);
   if (!secret) return null;

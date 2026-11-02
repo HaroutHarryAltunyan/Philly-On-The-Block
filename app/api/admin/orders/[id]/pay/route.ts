@@ -15,8 +15,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
 
     const payload = (await request.json().catch(() => null)) as { method?: string } | null;
-    if (payload?.method !== "cash") {
-      return Response.json({ error: 'method must be "cash"' }, { status: 400 });
+    // Payment is collected in person: cash, or a card run on the in-store /
+    // driver terminal. Online card payments go through Stripe instead.
+    const method = payload?.method === "cash" ? "cash" : payload?.method === "card" ? "card_in_person" : null;
+    if (!method) {
+      return Response.json({ error: 'method must be "cash" or "card"' }, { status: 400 });
     }
 
     const adminDb = await requireAdmin(request).catch(() => null);
@@ -53,10 +56,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ error: "Order is cancelled" }, { status: 409 });
     }
 
-    // Cash orders reserved no stock at creation — reserve now that the money
+    // In-person orders reserved no stock at creation — reserve now that the money
     // is confirmed. Whatever actually decrements gets recorded on the order so
     // a later cancel restores exactly that.
-    const paid = await markOrderPaid(db, orderId, "cash", { reserveStock: true });
+    const paid = await markOrderPaid(db, orderId, method, { reserveStock: true });
     if (!paid) {
       return Response.json({ error: "Could not mark order as paid" }, { status: 409 });
     }

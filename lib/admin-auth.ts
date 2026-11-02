@@ -108,6 +108,28 @@ export function readCookie(request: Request, name: string): string | undefined {
   return undefined;
 }
 
+// Native apps (Expo) authenticate with `Authorization: Bearer <token>` instead
+// of cookies. The token is the same HMAC-signed session token the cookie
+// carries, so verification is identical. Bearer tokens are never sent
+// automatically by browsers, so they are not exposed to CSRF.
+export function readBearerToken(request: Request): string | undefined {
+  const header = request.headers.get("authorization");
+  if (!header) return undefined;
+  const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
+  return match?.[1];
+}
+
+export function readSessionCredential(request: Request, cookieName: string): string | undefined {
+  return readCookie(request, cookieName) ?? readBearerToken(request);
+}
+
+// Login routes return the raw token in the JSON body only when the caller
+// identifies as a native app; browsers keep receiving it solely as an
+// HttpOnly cookie so page scripts can never read it.
+export function wantsNativeToken(request: Request): boolean {
+  return request.headers.get("x-client") === "native";
+}
+
 export function requestIsSecure(request: Request): boolean {
   return new URL(request.url).protocol === "https:";
 }

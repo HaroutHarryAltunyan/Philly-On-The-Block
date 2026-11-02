@@ -192,13 +192,13 @@ export default function OrdersPage() {
     }
   }
 
-  async function markCashPaid(order: Order) {
+  async function markPaidInPerson(order: Order, method: "cash" | "card") {
     setBusy(order.id);
     setError("");
     try {
       const result = await api<{ order: Order }>(`/api/admin/orders/${order.id}/pay`, {
         method: "POST",
-        body: JSON.stringify({ method: "cash" }),
+        body: JSON.stringify({ method }),
       });
       setOrders((current) => current.map((o) => (o.id === order.id ? result.order : o)));
       setSelected((current) => (current?.id === order.id ? result.order : current));
@@ -337,7 +337,7 @@ export default function OrdersPage() {
                       ) : order.paymentStatus === "refunded" ? (
                         <span className="status-chip status-cancelled">{PAYMENT_LABELS[order.paymentStatus]}</span>
                       ) : order.paymentMethod === "cash" ? (
-                        <span className="status-chip status-new">Cash due</span>
+                        <span className="status-chip status-new">Due in person</span>
                       ) : (
                         <span className="status-chip status-new">{PAYMENT_LABELS[order.paymentStatus]}</span>
                       )}
@@ -371,9 +371,14 @@ export default function OrdersPage() {
                           </button>
                         )}
                         {order.paymentStatus === "unpaid" && order.paymentMethod === "cash" && order.status !== "cancelled" && (
-                          <button type="button" disabled={busy === order.id} onClick={() => markCashPaid(order)}>
-                            Mark paid (cash)
-                          </button>
+                          <>
+                            <button type="button" disabled={busy === order.id} onClick={() => markPaidInPerson(order, "cash")}>
+                              Paid cash
+                            </button>
+                            <button type="button" disabled={busy === order.id} onClick={() => markPaidInPerson(order, "card")}>
+                              Paid card
+                            </button>
+                          </>
                         )}
                         {order.status !== "completed" && order.status !== "cancelled" && (
                           <button type="button" disabled={busy === order.id} onClick={() => setStatus(order, "cancelled")}>
@@ -452,10 +457,10 @@ export default function OrdersPage() {
                   <div className="stat-value" style={{ fontSize: "1.1rem", marginTop: "0.5rem" }}>
                     {selected.paymentStatus === "paid" ? (
                       <span className="status-chip status-ready">
-                        {selected.paymentMethod === "demo" ? "Demo" : selected.paymentMethod === "cash" ? "Paid · Cash" : "Paid"}
+                        {selected.paymentMethod === "demo" ? "Demo" : selected.paymentMethod === "cash" ? "Paid · Cash" : selected.paymentMethod === "card_in_person" ? "Paid · Card (in person)" : "Paid"}
                       </span>
                     ) : selected.paymentMethod === "cash" ? (
-                      <span className="status-chip status-new">Cash due</span>
+                      <span className="status-chip status-new">Due in person</span>
                     ) : (
                       <span className="status-chip status-new">Unpaid</span>
                     )}
@@ -471,7 +476,7 @@ export default function OrdersPage() {
                   )}
                   <tr><td><strong>Type</strong></td><td>{selected.fulfillment === "delivery" ? `Delivery — ${selected.address}` : "Pickup"}</td></tr>
                   <tr><td><strong>Placed</strong></td><td>{formatTime(selected.createdAt)}</td></tr>
-                  <tr><td><strong>Payment method</strong></td><td>{selected.paymentMethod === "demo" ? "Demo (no charge)" : selected.paymentMethod === "cash" ? "Cash in person" : (selected.paymentMethod || "—")}</td></tr>
+                  <tr><td><strong>Payment method</strong></td><td>{selected.paymentMethod === "demo" ? "Demo (no charge)" : selected.paymentMethod === "cash" ? (selected.paymentStatus === "paid" ? "Cash in person" : "Pay in person (cash or card)") : selected.paymentMethod === "card_in_person" ? "Card in person" : (selected.paymentMethod || "—")}</td></tr>
                   {selected.notes && (
                     <tr><td><strong>Notes</strong></td><td>{selected.notes}</td></tr>
                   )}
@@ -610,9 +615,14 @@ export default function OrdersPage() {
                   </button>
                 )}
                 {selected.paymentStatus === "unpaid" && selected.paymentMethod === "cash" && selected.status !== "cancelled" && (
-                  <button className="button primary-blue" type="button" disabled={busy === selected.id} onClick={() => markCashPaid(selected)}>
-                    Mark paid (cash)
-                  </button>
+                  <>
+                    <button className="button primary-blue" type="button" disabled={busy === selected.id} onClick={() => markPaidInPerson(selected, "cash")}>
+                      Paid cash
+                    </button>
+                    <button className="button primary-blue" type="button" disabled={busy === selected.id} onClick={() => markPaidInPerson(selected, "card")}>
+                      Paid card
+                    </button>
+                  </>
                 )}
                 {selected.status !== "completed" && selected.status !== "cancelled" && (
                   <button className="button secondary" type="button" disabled={busy === selected.id} onClick={() => setStatus(selected, "cancelled")}>

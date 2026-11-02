@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders, drivers } from "@/db/schema";
@@ -23,10 +23,18 @@ export async function POST(request: Request) {
       if (!driverExists) {
         return Response.json({ error: "Driver not found" }, { status: 404 });
       }
+      // Staff can (re)assign any delivery order the kitchen still holds;
+      // drivers self-claiming (below) are limited to brand-new orders.
       const [updated] = await adminDb
         .update(orders)
         .set({ driverId })
-        .where(and(eq(orders.id, payload.orderId), eq(orders.status, "new")))
+        .where(
+          and(
+            eq(orders.id, payload.orderId),
+            eq(orders.fulfillment, "delivery"),
+            inArray(orders.status, ["new", "preparing", "ready"]),
+          ),
+        )
         .returning();
       if (!updated) {
         return Response.json({ error: "Order not available for claiming" }, { status: 409 });

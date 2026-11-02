@@ -2,8 +2,13 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { drivers } from "@/db/schema";
-import { createDriverSessionToken, driverSessionCookieHeader, verifyDriverPassword } from "@/lib/driver-auth";
-import { requestIsSecure } from "@/lib/admin-auth";
+import {
+  createDriverSessionToken,
+  DRIVER_SESSION_TTL_MS,
+  driverSessionCookieHeader,
+  verifyDriverPassword,
+} from "@/lib/driver-auth";
+import { requestIsSecure, wantsNativeToken } from "@/lib/admin-auth";
 import { checkRateLimit, clearRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { isCrossOrigin, crossOriginResponse } from "@/lib/csrf";
 
@@ -55,7 +60,11 @@ export async function POST(request: Request) {
     await clearRateLimit(db, key);
     const token = await createDriverSessionToken(db, row.id);
     return Response.json(
-      { authenticated: true, driver: { id: row.id, name: row.name, phone: row.phone } },
+      {
+        authenticated: true,
+        driver: { id: row.id, name: row.name, phone: row.phone },
+        ...(wantsNativeToken(request) ? { token, expiresAt: Date.now() + DRIVER_SESSION_TTL_MS } : {}),
+      },
       {
         status: 200,
         headers: { "Set-Cookie": driverSessionCookieHeader(token, requestIsSecure(request)) },

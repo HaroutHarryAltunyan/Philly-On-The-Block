@@ -1,6 +1,6 @@
 import { getDb } from "../db";
 import { ensureBootstrap, type Db } from "../db/bootstrap";
-import { readCookie, readSessionToken, SESSION_COOKIE } from "./admin-auth";
+import { readSessionCredential, readSessionToken, SESSION_COOKIE } from "./admin-auth";
 
 export class AuthError extends Error {}
 
@@ -8,7 +8,7 @@ export async function requireAdmin(request: Request): Promise<Db> {
   const db = getDb();
   await ensureBootstrap(db);
 
-  const token = readCookie(request, SESSION_COOKIE);
+  const token = readSessionCredential(request, SESSION_COOKIE);
   const valid = await readSessionToken(db, token);
   if (!valid) {
     throw new AuthError("Not authenticated");

@@ -8,6 +8,7 @@ import {
   sessionCookieHeader,
   SESSION_TTL_MS,
   verifyPasscode,
+  wantsNativeToken,
 } from "../../../../lib/admin-auth";
 import { checkRateLimit, clearRateLimit, clientIp, rateLimitResponse } from "../../../../lib/rate-limit";
 import { isCrossOrigin, crossOriginResponse } from "../../../../lib/csrf";
@@ -52,7 +53,11 @@ export async function POST(request: Request) {
     await clearRateLimit(db, key);
     const token = await createSessionToken(db);
     return Response.json(
-      { authenticated: true, passcodeIsDefault: await passcodeIsDefault(db) },
+      {
+        authenticated: true,
+        passcodeIsDefault: await passcodeIsDefault(db),
+        ...(wantsNativeToken(request) ? { token, expiresAt: Date.now() + SESSION_TTL_MS } : {}),
+      },
       {
         status: 200,
         headers: { "Set-Cookie": sessionCookieHeader(token, SESSION_TTL_MS, requestIsSecure(request)) },

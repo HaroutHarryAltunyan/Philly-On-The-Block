@@ -45,9 +45,11 @@ export async function POST(request: Request) {
     }
 
     const isDelivery = payload.fulfillment === "delivery";
-    // Cash orders are placed unpaid and stay that way until staff (or the
-    // driver) confirms the money was collected in person.
-    // With card payments switched off, every order is a cash order.
+    // Pay-in-person orders (cash or card on a terminal) are placed unpaid with
+    // paymentMethod "cash" — meaning "collect in person" — and stay unpaid until
+    // staff (or the driver) records how the money was actually collected
+    // (POST /api/admin/orders/:id/pay with "cash" or "card").
+    // With online card payments switched off, every order is pay-in-person.
     const payCash = !CARD_PAYMENTS_ENABLED || payload.paymentMethod === "cash";
 
     const parsed = parseOrderPayload(

@@ -2,7 +2,7 @@ import { getDb } from "../../../../db";
 import { ensureBootstrap } from "../../../../db/bootstrap";
 import {
   passcodeIsDefault,
-  readCookie,
+  readSessionCredential,
   readSessionToken,
   SESSION_COOKIE,
 } from "../../../../lib/admin-auth";
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const db = getDb();
     await ensureBootstrap(db);
 
-    const token = readCookie(request, SESSION_COOKIE);
+    const token = readSessionCredential(request, SESSION_COOKIE);
     const authenticated = await readSessionToken(db, token);
 
     return Response.json({
