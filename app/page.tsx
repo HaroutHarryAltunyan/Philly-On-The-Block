@@ -5,7 +5,7 @@ import { trackAddToCart, trackPurchase } from "../lib/fbq";
 import SiteHeader from "./components/site-header";
 import { getBusinessStatus, formatClock } from "../lib/hours";
 import { CARD_PAYMENTS_ENABLED } from "../lib/payment-config";
-import { SERVICE_AREAS, SITE_NAME, SITE_URL, STORE_PHONE_TEL } from "../lib/site";
+import { BRAND_ALIASES, SERVICE_AREAS, SITE_NAME, SITE_URL, SOCIAL_PROFILES, STORE_PHONE_TEL } from "../lib/site";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
 
@@ -135,7 +135,7 @@ const restaurantSchema = {
   "@type": ["Restaurant", "FoodEstablishment"],
   "@id": `${SITE_URL}/#restaurant`,
   name: SITE_NAME,
-  alternateName: "Philly OTB",
+  alternateName: BRAND_ALIASES,
   description:
     "Hand-chopped Philly cheesesteaks, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd in Burbank, California. Pickup, delivery, and cheesesteak catering.",
   url: SITE_URL,
@@ -176,7 +176,7 @@ const restaurantSchema = {
     },
     deliveryMethod: ["http://purl.org/goodrelations/v1#DeliveryModePickUp", "http://purl.org/goodrelations/v1#DeliveryModeOwnFleet"],
   },
-  sameAs: ["https://www.yelp.com/menu/philly-on-the-block-burbank"],
+  sameAs: Object.values(SOCIAL_PROFILES),
 };
 
 const menuSchema = {
@@ -977,7 +977,7 @@ export default function Home() {
             <h2>Choose your damage.</h2>
           </div>
           <p>
-            The Burbank cheesesteak menu and prices from Philly on the Block — order pickup or delivery. <a href="https://www.yelp.com/menu/philly-on-the-block-burbank" target="_blank" rel="noreferrer">View the Yelp menu ↗</a>
+            The Burbank cheesesteak menu and prices from Philly on the Block — order pickup or delivery. <a href={SOCIAL_PROFILES.yelp} target="_blank" rel="noopener">See our Yelp reviews ↗</a>
           </p>
         </div>
 
@@ -1436,6 +1436,8 @@ export default function Home() {
           <a href="#faq">FAQ</a>
           <a href="/track">Track order</a>
           <a href="/portal">Rewards</a>
+          <a href={SOCIAL_PROFILES.instagram} target="_blank" rel="noopener me">Instagram</a>
+          <a href={SOCIAL_PROFILES.yelp} target="_blank" rel="noopener">Yelp</a>
           <a href="tel:+18184066053">Call</a>
         </div>
         <small>© 2026 Philly on the Block · 2600 W Victory Blvd, Burbank, CA</small>

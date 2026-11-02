@@ -36,10 +36,24 @@ export const SEO_KEYWORDS = [
   "burbank restaurants",
   "delivery burbank",
   "philly on the block",
+  "phillyontheblock",
+  "philly otb",
 ];
 
 // Neighborhoods within easy reach of the truck — used in structured data
 // (areaServed) and on-page copy so local searches can match.
+// Official profiles. Listed in structured data (sameAs) and linked in the
+// footer so Google ties phillyontheblock.com to the same business as these.
+export const SOCIAL_PROFILES = {
+  instagram: "https://www.instagram.com/philly_ontheblock/",
+  yelp: "https://www.yelp.com/biz/philly-on-the-block-burbank",
+  appleMaps: "https://maps.apple.com/place?place-id=IAE1761C449E10B2F",
+  mapquest: "https://www.mapquest.com/us/california/philly-on-the-block-777681734",
+  postmates: "https://postmates.com/store/philly-on-the-block/sIvSx0G9RpumxOvHciintQ",
+};
+
+export const BRAND_ALIASES = ["PhillyOnTheBlock", "Philly OTB", "Philly On The Block Burbank"];
+
 export const SERVICE_AREAS = [
   "Burbank",
   "Glendale",

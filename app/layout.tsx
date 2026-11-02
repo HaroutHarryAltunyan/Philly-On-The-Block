@@ -3,9 +3,9 @@ import "./globals.css";
 import PwaSetup from "./components/pwa-setup";
 import MetaPixel from "./components/meta-pixel";
 import { getMetaPixelId } from "../lib/meta-pixel";
-import { SITE_NAME, SITE_URL, SEO_KEYWORDS, GOOGLE_SITE_VERIFICATION } from "../lib/site";
+import { BRAND_ALIASES, SITE_NAME, SITE_URL, SEO_KEYWORDS, GOOGLE_SITE_VERIFICATION } from "../lib/site";
 
-const title = "Best Philly Cheesesteaks in Burbank, CA | Philly on the Block";
+const title = "Philly on the Block | Best Philly Cheesesteaks in Burbank, CA";
 const description =
   "Burbank's Philly cheesesteak spot: hand-chopped cheesesteaks on freshly baked bread, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd. Order pickup or delivery online.";
 
@@ -91,7 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,
               name: SITE_NAME,
-              alternateName: ["Philly OTB", "Philly on the Block Burbank"],
+              alternateName: BRAND_ALIASES,
               url: SITE_URL,
               description,
               inLanguage: "en-US",
