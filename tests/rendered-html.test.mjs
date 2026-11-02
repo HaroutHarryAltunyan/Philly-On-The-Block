@@ -30,10 +30,10 @@ test("server-renders the Philly on the Block homepage shell", async () => {
 
   const html = await response.text();
 
-  assert.match(html, /Cheesesteaks in Burbank, CA \| Philly on the Block/);
+  assert.match(html, /Philly on the Block \| Best Philly Cheesesteaks in Burbank, CA/);
   assert.match(html, /2600 W Victory Blvd/);
   assert.match(html, /\(818\) 406-6053/);
-  assert.match(html, /https:\/\/www\.yelp\.com\/menu\/philly-on-the-block-burbank/);
+  assert.match(html, /https:\/\/www\.yelp\.com\/biz\/philly-on-the-block-burbank/);
   assert.match(html, /OTB Ranch/);
   assert.match(html, /OTB Tang/);
   assert.match(html, /Built on\s*<span>the block\.<\/span>/);
@@ -61,7 +61,7 @@ test("keeps the menu source, baby-blue palette, and hosting identity in place", 
   assert.match(page, /OTB Tang/);
   assert.match(css, /#badaff/i);
   assert.ok(menuPhotos.every((photo) => photo.length > 80_000));
-  assert.match(layout, /Cheesesteaks in Burbank, CA \| Philly on the Block/);
+  assert.match(layout, /Philly on the Block \| Best Philly Cheesesteaks in Burbank, CA/);
   assert.equal(
     JSON.parse(hosting).project_id,
     "appgprj_6a7a4fd863588191a577827e10323f47",
