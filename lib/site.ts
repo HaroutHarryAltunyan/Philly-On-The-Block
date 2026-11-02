@@ -46,6 +46,7 @@ export const SEO_KEYWORDS = [
 // footer so Google ties phillyontheblock.com to the same business as these.
 export const SOCIAL_PROFILES = {
   instagram: "https://www.instagram.com/philly_ontheblock/",
+  tiktok: "https://www.tiktok.com/@philly_otb",
   yelp: "https://www.yelp.com/biz/philly-on-the-block-burbank",
   appleMaps: "https://maps.apple.com/place?place-id=IAE1761C449E10B2F",
   mapquest: "https://www.mapquest.com/us/california/philly-on-the-block-777681734",

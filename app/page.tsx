@@ -1430,6 +1430,7 @@ export default function Home() {
         </a>
         <div className="footer-social">
           <p>Fresh bread. Big flavor. Block energy.</p>
+          <div className="social-links">
           <a className="instagram-link" href={SOCIAL_PROFILES.instagram} target="_blank" rel="noopener me" aria-label="Follow Philly on the Block on Instagram, @philly_ontheblock">
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
               <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -1438,6 +1439,13 @@ export default function Home() {
             </svg>
             <span>@philly_ontheblock</span>
           </a>
+          <a className="instagram-link" href={SOCIAL_PROFILES.tiktok} target="_blank" rel="noopener me" aria-label="Follow Philly on the Block on TikTok, @philly_otb">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M16.6 2h-3.3v13.2a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9a6.3 6.3 0 1 0 5.3 6.2V8.6a8 8 0 0 0 4.4 1.4V6.7a4.6 4.6 0 0 1-4.4-4.7Z" />
+            </svg>
+            <span>@philly_otb</span>
+          </a>
+          </div>
         </div>
         <div className="footer-links">
           <a href="#menu">Menu</a>
