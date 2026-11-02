@@ -1,3 +1,4 @@
+import { audit, driverActor } from "@/lib/audit";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
@@ -54,11 +55,13 @@ export async function POST(request: Request) {
       ? await verifyDriverPassword(password, row.passwordHash)
       : await verifyDriverPassword(password, TIMING_HASH);
     if (!row || !passwordOk) {
+      await audit(db, request, { name: phone, role: "unknown" }, "driver.login_failed");
       return Response.json({ error: "Invalid phone number or password." }, { status: 401 });
     }
 
     await clearRateLimit(db, key);
     const token = await createDriverSessionToken(db, row.id, row.sessionVersion);
+    await audit(db, request, driverActor(row), "driver.login");
     return Response.json(
       {
         authenticated: true,

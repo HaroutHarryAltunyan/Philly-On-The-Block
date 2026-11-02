@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/admin-client";
 import "./admin.css";
 
-type SessionState = { status: "checking" } | { status: "authenticated"; passcodeIsDefault: boolean } | { status: "guest" };
+type Role = "owner" | "manager" | "kitchen";
+type SessionState = { status: "checking" } | { status: "authenticated"; passcodeIsDefault: boolean; role: Role } | { status: "guest" };
 
 const NAV = [
   { href: "/dashboard", label: "Overview" },
@@ -13,9 +14,9 @@ const NAV = [
   { href: "/dashboard/map", label: "Delivery Map" },
   { href: "/dashboard/reservations", label: "Reservations" },
   { href: "/dashboard/menu", label: "Menu" },
-  { href: "/dashboard/coupons", label: "Coupons" },
-  { href: "/dashboard/subscribers", label: "Subscribers" },
-  { href: "/dashboard/drivers/manage", label: "Drivers" },
+  { href: "/dashboard/coupons", label: "Coupons", managers: true },
+  { href: "/dashboard/subscribers", label: "Subscribers", managers: true },
+  { href: "/dashboard/drivers/manage", label: "Drivers", managers: true },
   { href: "/dashboard/settings", label: "Settings" },
 ];
 
@@ -44,11 +45,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       };
     }
 
-    api<{ authenticated: boolean; passcodeIsDefault: boolean }>("/api/admin/me")
+    api<{ authenticated: boolean; passcodeIsDefault: boolean; staff?: { role: Role } }>("/api/admin/me")
       .then((me) => {
         if (cancelled) return;
         if (me.authenticated) {
-          setSession({ status: "authenticated", passcodeIsDefault: me.passcodeIsDefault });
+          setSession({ status: "authenticated", passcodeIsDefault: me.passcodeIsDefault, role: me.staff?.role ?? "owner" });
         } else {
           setSession({ status: "guest" });
           router.replace("/dashboard/login");
@@ -111,7 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <nav className="admin-nav">
-            {NAV.map((item) => (
+            {NAV.filter((item) => !("managers" in item) || (session.status === "authenticated" && session.role !== "kitchen")).map((item) => (
               <a key={item.href} href={item.href} className={pathname === item.href ? "active" : ""}>
                 {item.label}
                 {item.href === "/dashboard/orders" && counts.orders !== null && (

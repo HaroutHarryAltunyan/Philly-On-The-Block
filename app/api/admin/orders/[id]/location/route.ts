@@ -4,7 +4,7 @@ import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
 import { parseCoordinatePair } from "@/lib/tracking";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
-import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
+import { AuthError, requireAdmin, toErrorResponse, ForbiddenError } from "@/lib/admin-routes";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -66,6 +66,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return Response.json({ ok: true });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

@@ -1,9 +1,11 @@
+import { audit, driverActor } from "@/lib/audit";
+import { afterStaffAssigned } from "@/lib/dispatch";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders, drivers } from "@/db/schema";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
-import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
+import { AuthError, toErrorResponse, ForbiddenError, requireStaff } from "@/lib/admin-routes";
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +14,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "orderId required" }, { status: 400 });
     }
 
-    const adminDb = await requireAdmin(request).catch(() => null);
+    const staff = await requireStaff(request).catch(() => null);
+    const adminDb = staff?.db ?? null;
 
     if (adminDb) {
       const driverId = Number(payload.driverId);
@@ -39,6 +42,8 @@ export async function POST(request: Request) {
       if (!updated) {
         return Response.json({ error: "Order not available for claiming" }, { status: 409 });
       }
+      await audit(adminDb, request, staff!.actor, "order.assign", updated.orderNumber, { driverId, driver: driverExists.name });
+      await afterStaffAssigned(adminDb, updated);
       return Response.json({ order: updated });
     }
 
@@ -69,10 +74,13 @@ export async function POST(request: Request) {
     if (!updated) {
       return Response.json({ error: "Order not available for claiming" }, { status: 409 });
     }
+    await audit(db, request, driverActor(driver), "order.claim", updated.orderNumber);
+    await afterStaffAssigned(db, { ...updated, driverId: null }); // retire any live offers for it
 
     return Response.json({ order: updated });
   } catch (error) {
      if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

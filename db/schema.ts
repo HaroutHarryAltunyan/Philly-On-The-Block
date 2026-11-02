@@ -198,3 +198,74 @@ export const revokedSessions = sqliteTable("revoked_sessions", {
   jti: text("jti").primaryKey(),
   expiresAt: integer("expires_at").notNull(),
 });
+
+export const staffRoles = ["owner", "manager", "kitchen"] as const;
+export type StaffRole = (typeof staffRoles)[number];
+
+// Per-person staff logins. The legacy shared passcode still signs in as the
+// owner, so nobody is locked out when accounts are introduced.
+export const staffUsers = sqliteTable(
+  "staff_users",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    username: text("username").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role", { enum: staffRoles }).notNull().default("kitchen"),
+    // Base32 TOTP secret; empty = two-factor off. Pending holds a secret
+    // during setup until the first code confirms it.
+    totpSecret: text("totp_secret").notNull().default(""),
+    totpPending: text("totp_pending").notNull().default(""),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [uniqueIndex("staff_users_username_idx").on(table.username)],
+);
+
+// Who did what: every sensitive staff/driver action is recorded here.
+export const auditLogs = sqliteTable(
+  "audit_logs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    actor: text("actor").notNull(),
+    actorRole: text("actor_role").notNull(),
+    action: text("action").notNull(),
+    target: text("target").notNull().default(""),
+    detail: text("detail").notNull().default(""),
+    ip: text("ip").notNull().default(""),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [index("audit_logs_created_at_idx").on(table.createdAt)],
+);
+
+// Dispatch offers: an unassigned delivery is offered to one online driver at
+// a time; it expires after a short window and moves to the next driver.
+export const deliveryOffers = sqliteTable(
+  "delivery_offers",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    orderId: integer("order_id").notNull(),
+    driverId: integer("driver_id").notNull(),
+    status: text("status", { enum: ["offered", "accepted", "declined", "expired"] }).notNull().default("offered"),
+    expiresAt: integer("expires_at").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    index("delivery_offers_order_idx").on(table.orderId),
+    index("delivery_offers_driver_idx").on(table.driverId),
+  ],
+);
+
+// Expo push tokens per device. Staff tokens get new-order alerts, driver
+// tokens get offers/assignments, customer tokens get their order updates.
+export const pushTokens = sqliteTable(
+  "push_tokens",
+  {
+    token: text("token").primaryKey(),
+    kind: text("kind", { enum: ["staff", "driver", "customer"] }).notNull(),
+    driverId: integer("driver_id"),
+    phoneKey: text("phone_key").notNull().default(""),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [index("push_tokens_kind_idx").on(table.kind)],
+);

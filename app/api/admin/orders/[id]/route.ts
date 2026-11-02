@@ -1,11 +1,13 @@
+import { audit, driverActor } from "@/lib/audit";
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
+import { AuthError, toErrorResponse, ForbiddenError, requireStaff, MANAGERS } from "@/lib/admin-routes";
 import { restoreOrderStock } from "@/lib/checkout";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
 import { checkRateLimit, clearRateLimit } from "@/lib/rate-limit";
+import { afterOrderChange } from "@/lib/dispatch";
 
 const PIN_MAX_ATTEMPTS = 8;
 const PIN_WINDOW_MS = 10 * 60 * 1000;
@@ -35,7 +37,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       );
     }
 
-    const db = await requireAdmin(request).catch(() => null);
+    const staff = await requireStaff(request).catch(() => null);
+    const db = staff?.db ?? null;
 
     if (!db) {
       const driverDb = getDb();
@@ -76,6 +79,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         }
         await clearRateLimit(driverDb, `delivery-pin:${orderId}`);
       }
+      const driverActorInfo = driverActor(driver);
       // Conditional update so a stale client can't overwrite a status that
       // changed underneath it (e.g. staff cancelled the order meanwhile).
       const [updated] = await driverDb
@@ -95,6 +99,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
           { status: 409 },
         );
       }
+      await audit(driverDb, request, driverActorInfo, "order.status", order.orderNumber, { from: order.status, to: payload.status });
+      await afterOrderChange(driverDb, updated, order.status);
       return Response.json({ order: { ...updated, items: JSON.parse(updated.items) as unknown } });
     }
 
@@ -115,17 +121,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       // orders reserved nothing, so this is a no-op for them.
       await restoreOrderStock(db, order);
     }
+    await audit(db, request, staff!.actor, "order.status", order.orderNumber, { from: existing[0].status, to: payload.status });
+    await afterOrderChange(db, order, existing[0].status);
 
     return Response.json({ order: { ...order, items: JSON.parse(order.items) as unknown } });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const { id } = await context.params;
     const orderId = Number(id);
     if (!Number.isInteger(orderId) || orderId <= 0) {
@@ -143,9 +152,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     }
 
     await db.delete(orders).where(and(eq(orders.id, orderId)));
+    await audit(db, request, actor, "order.delete", order.orderNumber, { totalCents: order.totalCents, status: order.status });
     return Response.json({ deleted: orderId });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

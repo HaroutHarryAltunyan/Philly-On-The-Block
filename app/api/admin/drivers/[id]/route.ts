@@ -1,7 +1,8 @@
+import { audit } from "@/lib/audit";
 import { eq, sql, type SQL } from "drizzle-orm";
 import { drivers } from "@/db/schema";
 import { hashDriverPassword } from "@/lib/driver-auth";
-import { AuthError, requireAdmin } from "@/lib/admin-routes";
+import { AuthError, requireStaff, MANAGERS, ForbiddenError } from "@/lib/admin-routes";
 
 const DRIVER_STATUSES = ["active", "inactive"] as const;
 
@@ -17,7 +18,7 @@ function publicDriver(driver: { id: number; name: string; phone: string; status:
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const { id } = await params;
     const driverId = Number(id);
     if (!Number.isInteger(driverId) || driverId <= 0) {
@@ -73,9 +74,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return Response.json({ error: "Driver not found" }, { status: 404 });
     }
 
+    await audit(db, request, actor, "driver.update", driverId, { fields: Object.keys(payload).filter((k) => k !== "password"), passwordReset: payload.password !== undefined });
     return Response.json({ driver: publicDriver(updated) });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     const detail =
       error instanceof Error ? [error.message, (error.cause as Error | undefined)?.message].filter(Boolean).join(" ") : "";
     if (detail.includes("UNIQUE constraint failed")) {
@@ -90,7 +93,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const { id } = await params;
     const driverId = Number(id);
     if (!Number.isInteger(driverId) || driverId <= 0) {
@@ -101,9 +104,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!deleted) {
       return Response.json({ error: "Driver not found" }, { status: 404 });
     }
+    await audit(db, request, actor, "driver.delete", driverId);
     return Response.json({ deleted: driverId });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return Response.json(
       { error: error instanceof Error ? error.message : "Failed to delete driver" },
       { status: 500 },

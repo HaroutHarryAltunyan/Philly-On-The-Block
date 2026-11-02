@@ -75,6 +75,9 @@ const worker = {
       ]);
       const db = getDb();
       await ensureBootstrap(db);
+      // Safety-net dispatch tick in case no driver app is polling.
+      const { runDispatch } = await import("../lib/dispatch");
+      await runDispatch(db).catch((error) => console.error("[dispatch] cron tick failed:", error));
       const result = await reapLingeringStripeOrders(db);
       if (result.checked > 0 || result.markedPaid > 0 || result.cancelled > 0) {
         console.log(

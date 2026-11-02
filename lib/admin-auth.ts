@@ -69,17 +69,59 @@ export async function rotateAdminSessionSecret(db: Db): Promise<void> {
   await setSetting(db, "adminSessionSecret", secret);
 }
 
-export async function createSessionToken(db: Db): Promise<string> {
+export type StaffIdentity = {
+  /** staff_users.id, or 0 for the shared owner passcode. */
+  sid: number;
+  role: "owner" | "manager" | "kitchen";
+  name: string;
+};
+
+export const OWNER_PASSCODE_IDENTITY: StaffIdentity = { sid: 0, role: "owner", name: "Owner (passcode)" };
+
+export async function createSessionToken(db: Db, identity: StaffIdentity = OWNER_PASSCODE_IDENTITY): Promise<string> {
   const secret = await readAdminSessionSecret(db);
   if (!secret) throw new Error("Admin session secret is not initialized");
   const payload = base64UrlEncode(
-    JSON.stringify({ exp: Date.now() + SESSION_TTL_MS, jti: crypto.randomUUID().replaceAll("-", "") }),
+    JSON.stringify({
+      exp: Date.now() + SESSION_TTL_MS,
+      jti: crypto.randomUUID().replaceAll("-", ""),
+      sid: identity.sid,
+      role: identity.role,
+      name: identity.name,
+    }),
   );
   const signature = await hmacSha256(secret, payload);
   return `${payload}.${signature}`;
 }
 
 export async function readSessionToken(db: Db, token: string | undefined | null): Promise<boolean> {
+  return (await readStaffSession(db, token)) !== null;
+}
+
+/**
+ * Verifies an admin session token and returns who it belongs to. Tokens issued
+ * before staff accounts existed carry no identity and are treated as the owner.
+ * Staff-account tokens are also rejected once the account is deactivated.
+ */
+export async function readStaffSession(db: Db, token: string | undefined | null): Promise<StaffIdentity | null> {
+  if (!(await verifyAdminTokenSignature(db, token))) return null;
+  const claims = JSON.parse(base64UrlDecode(token!.slice(0, token!.lastIndexOf(".")))) as {
+    sid?: number;
+    role?: StaffIdentity["role"];
+    name?: string;
+  };
+  const sid = typeof claims.sid === "number" ? claims.sid : 0;
+  if (sid === 0) return { ...OWNER_PASSCODE_IDENTITY, name: claims.name || OWNER_PASSCODE_IDENTITY.name };
+  const rows = (await db.run(
+    sql`SELECT name, role, active FROM staff_users WHERE id = ${sid} LIMIT 1`,
+  )) as unknown as { results?: Array<{ name: string; role: StaffIdentity["role"]; active: number }> };
+  const row = rows.results?.[0];
+  if (!row || !row.active) return null;
+  // Role comes from the database, so a demotion takes effect immediately.
+  return { sid, role: row.role, name: row.name };
+}
+
+async function verifyAdminTokenSignature(db: Db, token: string | undefined | null): Promise<boolean> {
   if (!token) return false;
   const secret = await readAdminSessionSecret(db);
   if (!secret) return false;

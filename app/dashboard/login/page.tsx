@@ -7,7 +7,12 @@ import "../admin.css";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<"passcode" | "staff">("passcode");
   const [passcode, setPasscode] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needCode, setNeedCode] = useState(false);
   const [error, setError] = useState("");
   const [defaultPasscode, setDefaultPasscode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -23,15 +28,24 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      const result = await api<{ authenticated: boolean }>("/api/admin/login", {
+      const response = await fetch("/api/admin/login", {
         method: "POST",
-        body: JSON.stringify({ passcode }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(mode === "passcode" ? { passcode } : { username, password }),
+          ...(needCode ? { code } : {}),
+        }),
       });
-      if (result.authenticated) {
+      const result = (await response.json().catch(() => ({}))) as { authenticated?: boolean; error?: string; code?: string };
+      if (response.ok && result.authenticated) {
         router.replace("/dashboard");
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      if (result.code === "mfa_required" || result.code === "mfa_invalid") setNeedCode(true);
+      setError(result.code === "mfa_required" ? "" : result.error ?? "Login failed");
+      setSubmitting(false);
+    } catch {
+      setError("Login failed");
       setSubmitting(false);
     }
   }
@@ -51,24 +65,62 @@ export default function LoginPage() {
           </div>
         </div>
         <h1>Restaurant login</h1>
-        <p>Enter your passcode to manage orders, reservations, and the menu.</p>
+        <p>Sign in to manage orders, reservations, and the menu.</p>
+        <div role="tablist" aria-label="Sign-in method" style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+          {(["passcode", "staff"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={mode === value}
+              className={`button small ${mode === value ? "primary-blue" : "secondary"}`}
+              onClick={() => {
+                setMode(value);
+                setNeedCode(false);
+                setCode("");
+                setError("");
+              }}
+            >
+              {value === "passcode" ? "Owner passcode" : "Staff account"}
+            </button>
+          ))}
+        </div>
         <form onSubmit={submit}>
-          <div className="field">
-            <label htmlFor="passcode">Passcode</label>
-            <input
-              id="passcode"
-              type="password"
-              autoComplete="current-password"
-              value={passcode}
-              onChange={(event) => setPasscode(event.target.value)}
-              required
-            />
-          </div>
+          {mode === "passcode" ? (
+            <div className="field">
+              <label htmlFor="passcode">Passcode</label>
+              <input
+                id="passcode"
+                type="password"
+                autoComplete="current-password"
+                value={passcode}
+                onChange={(event) => setPasscode(event.target.value)}
+                required
+              />
+            </div>
+          ) : (
+            <>
+              <div className="field">
+                <label htmlFor="username">Username</label>
+                <input id="username" autoComplete="username" autoCapitalize="none" value={username} onChange={(event) => setUsername(event.target.value)} required />
+              </div>
+              <div className="field">
+                <label htmlFor="password">Password</label>
+                <input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+              </div>
+            </>
+          )}
+          {needCode && (
+            <div className="field">
+              <label htmlFor="code">6-digit code from your authenticator app</label>
+              <input id="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} required />
+            </div>
+          )}
           {error && <div className="alert error">{error}</div>}
           {defaultPasscode && !error && (
             <div className="alert success">Default passcode: <strong>philly123</strong> — change it in Settings after logging in.</div>
           )}
-          <button className="button primary-blue" type="submit" disabled={submitting || !passcode}>
+          <button className="button primary-blue" type="submit" disabled={submitting || (mode === "passcode" ? !passcode : !username || !password) || (needCode && code.length !== 6)}>
             {submitting ? "Checking…" : "Get in"}
           </button>
         </form>

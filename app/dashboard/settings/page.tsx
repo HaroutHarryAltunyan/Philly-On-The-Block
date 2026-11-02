@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { SecuritySettings } from "./security";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -271,6 +272,8 @@ export default function SettingsPage() {
           </form>
         </div>
       </section>
+
+      <SecuritySettings />
     </>
   );
 }

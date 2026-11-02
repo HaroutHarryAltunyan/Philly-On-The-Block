@@ -1,12 +1,13 @@
+import { audit } from "@/lib/audit";
 import { and, eq } from "drizzle-orm";
 import { reservations } from "../../../../../db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../../lib/admin-routes";
+import { AuthError, toErrorResponse, requireStaff, MANAGERS, ForbiddenError } from "../../../../../lib/admin-routes";
 
 const STATUSES = ["pending", "confirmed", "cancelled"] as const;
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request);
     const { id } = await context.params;
     const reservationId = Number(id);
     if (!Number.isInteger(reservationId) || reservationId <= 0) {
@@ -49,16 +50,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       .where(and(eq(reservations.id, reservationId)))
       .returning();
 
+    await audit(db, request, actor, "reservation.update", reservationId);
+
     return Response.json({ reservation });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const { id } = await context.params;
     const reservationId = Number(id);
     if (!Number.isInteger(reservationId) || reservationId <= 0) {
@@ -71,9 +75,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     }
 
     await db.delete(reservations).where(and(eq(reservations.id, reservationId)));
+    await audit(db, request, actor, "reservation.delete", reservationId);
     return Response.json({ deleted: reservationId });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

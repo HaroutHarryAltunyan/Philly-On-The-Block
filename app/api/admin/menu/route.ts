@@ -1,6 +1,7 @@
+import { audit } from "@/lib/audit";
 import { asc } from "drizzle-orm";
 import { menuItems } from "../../../../db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../lib/admin-routes";
+import { AuthError, requireAdmin, toErrorResponse, requireStaff, MANAGERS, ForbiddenError } from "../../../../lib/admin-routes";
 import {
   attachMenuOptions,
   parseStockQty,
@@ -26,13 +27,14 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const payload = (await request.json()) as {
       name?: string;
       category?: string;
@@ -81,9 +83,12 @@ export async function POST(request: Request) {
     }
     const [withOptions] = await attachMenuOptions(db, [item]);
 
+    await audit(db, request, actor, "menu.create", item.id, { name: item.name, priceCents: item.priceCents });
+
     return Response.json({ item: withOptions }, { status: 201 });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

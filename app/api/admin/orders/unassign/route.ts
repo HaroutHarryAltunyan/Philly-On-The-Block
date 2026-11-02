@@ -1,13 +1,16 @@
+import { audit, driverActor } from "@/lib/audit";
+import { afterOrderChange } from "@/lib/dispatch";
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
-import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
+import { AuthError, toErrorResponse, ForbiddenError, requireStaff } from "@/lib/admin-routes";
 
 export async function POST(request: Request) {
   try {
-    const db = await requireAdmin(request).catch(() => null);
+    const staff = await requireStaff(request).catch(() => null);
+    const db = staff?.db ?? null;
 
     if (!db) {
       const driverDb = getDb();
@@ -34,6 +37,8 @@ export async function POST(request: Request) {
         .where(eq(orders.id, payload.orderId))
         .returning();
       if (!updated) return Response.json({ error: "Order not found" }, { status: 404 });
+      await audit(driverDb, request, driverActor(driver), "order.release", updated.orderNumber);
+      await afterOrderChange(driverDb, updated);
       return Response.json({ order: updated });
     }
 
@@ -51,10 +56,13 @@ export async function POST(request: Request) {
     if (!updated) {
       return Response.json({ error: "Order not found" }, { status: 404 });
     }
+    await audit(db, request, staff!.actor, "order.unassign", updated.orderNumber);
+    await afterOrderChange(db, updated);
 
     return Response.json({ order: updated });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

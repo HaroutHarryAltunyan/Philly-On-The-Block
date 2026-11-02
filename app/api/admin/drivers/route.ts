@@ -1,8 +1,9 @@
+import { audit } from "@/lib/audit";
 import { asc } from "drizzle-orm";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { drivers } from "@/db/schema";
 import { hashDriverPassword } from "@/lib/driver-auth";
-import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
+import { AuthError, requireAdmin, toErrorResponse, requireStaff, MANAGERS, ForbiddenError } from "@/lib/admin-routes";
 
 export async function GET(request: Request) {
   try {
@@ -21,13 +22,14 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const payload = (await request.json()) as { name?: string; phone?: string; password?: string };
     const name = (payload.name ?? "").trim();
     const phone = (payload.phone ?? "").trim();
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
       createdAt: new Date(),
     }).returning();
 
+    await audit(db, request, actor, "driver.create", created.id, { name: created.name });
+
     return Response.json({
       driver: {
         id: created.id,
@@ -59,6 +63,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     const detail =
       error instanceof Error ? [error.message, (error.cause as Error | undefined)?.message].filter(Boolean).join(" ") : "";
     if (detail.includes("UNIQUE constraint failed")) {

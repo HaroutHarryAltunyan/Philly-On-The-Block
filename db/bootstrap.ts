@@ -113,6 +113,54 @@ const TABLES: Array<{ name: string; ddl: string }> = [
     )`,
   },
   {
+    name: "staff_users",
+    ddl: `CREATE TABLE IF NOT EXISTS staff_users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      username TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'kitchen',
+      totp_secret TEXT NOT NULL DEFAULT '',
+      totp_pending TEXT NOT NULL DEFAULT '',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL
+    )`,
+  },
+  {
+    name: "audit_logs",
+    ddl: `CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor TEXT NOT NULL,
+      actor_role TEXT NOT NULL,
+      action TEXT NOT NULL,
+      target TEXT NOT NULL DEFAULT '',
+      detail TEXT NOT NULL DEFAULT '',
+      ip TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL
+    )`,
+  },
+  {
+    name: "delivery_offers",
+    ddl: `CREATE TABLE IF NOT EXISTS delivery_offers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      driver_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'offered',
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
+  },
+  {
+    name: "push_tokens",
+    ddl: `CREATE TABLE IF NOT EXISTS push_tokens (
+      token TEXT PRIMARY KEY NOT NULL,
+      kind TEXT NOT NULL,
+      driver_id INTEGER,
+      phone_key TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL
+    )`,
+  },
+  {
     name: "revoked_sessions",
     ddl: `CREATE TABLE IF NOT EXISTS revoked_sessions (
       jti TEXT PRIMARY KEY NOT NULL,
@@ -163,6 +211,14 @@ const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [
   {
     name: "subscribers_email_idx",
     ddl: "CREATE UNIQUE INDEX IF NOT EXISTS subscribers_email_idx ON subscribers (email)",
+  },
+  {
+    name: "delivery_offers_live_order_idx",
+    ddl: "CREATE UNIQUE INDEX IF NOT EXISTS delivery_offers_live_order_idx ON delivery_offers (order_id) WHERE status = 'offered'",
+  },
+  {
+    name: "delivery_offers_live_driver_idx",
+    ddl: "CREATE UNIQUE INDEX IF NOT EXISTS delivery_offers_live_driver_idx ON delivery_offers (driver_id) WHERE status = 'offered'",
   },
   {
     name: "orders_phone_key_idx",

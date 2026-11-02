@@ -1,8 +1,9 @@
+import { audit, driverActor, type AuditActor } from "@/lib/audit";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap, type Db } from "@/db/bootstrap";
 import { orders } from "@/db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "@/lib/admin-routes";
+import { AuthError, toErrorResponse, ForbiddenError, requireStaff } from "@/lib/admin-routes";
 import { markOrderPaid } from "@/lib/checkout";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
 
@@ -22,7 +23,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ error: 'method must be "cash" or "card"' }, { status: 400 });
     }
 
-    const adminDb = await requireAdmin(request).catch(() => null);
+    const staff = await requireStaff(request).catch(() => null);
+    const adminDb = staff?.db ?? null;
+    let actorInfo: AuditActor | null = staff?.actor ?? null;
 
     let db: Db;
     let order: (typeof orders.$inferSelect) | undefined;
@@ -44,6 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         return Response.json({ error: "Not authorized" }, { status: 403 });
       }
       db = driverDb;
+      actorInfo = driverActor(driver);
     }
 
     if (!order) {
@@ -65,9 +69,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
 
     const [updated] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    await audit(db, request, actorInfo!, "order.paid", order.orderNumber, { method, totalCents: order.totalCents });
     return Response.json({ order: { ...updated, items: JSON.parse(updated.items) as unknown } });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

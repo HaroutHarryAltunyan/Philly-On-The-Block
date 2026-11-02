@@ -1,10 +1,11 @@
+import { audit } from "@/lib/audit";
 import { and, eq, sql } from "drizzle-orm";
 import { coupons, couponTypes } from "../../../../../db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../../lib/admin-routes";
+import { AuthError, toErrorResponse, requireStaff, MANAGERS, ForbiddenError } from "../../../../../lib/admin-routes";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const { id } = await context.params;
     const couponId = Number(id);
     if (!Number.isInteger(couponId) || couponId <= 0) {
@@ -70,16 +71,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       .where(eq(coupons.id, couponId))
       .returning();
 
+    await audit(db, request, actor, "coupon.update", coupon.code);
+
     return Response.json({ coupon });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const { id } = await context.params;
     const couponId = Number(id);
     if (!Number.isInteger(couponId) || couponId <= 0) {
@@ -92,9 +96,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     }
 
     await db.delete(coupons).where(eq(coupons.id, couponId));
+    await audit(db, request, actor, "coupon.delete", couponId);
     return Response.json({ deleted: couponId });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

@@ -1,9 +1,10 @@
+import { offersForDriver, runDispatch } from "@/lib/dispatch";
 import { desc, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { orders } from "../../../../db/schema";
 import { getActiveDriverFromRequest } from "@/lib/driver-auth";
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../lib/admin-routes";
+import { AuthError, toErrorResponse, ForbiddenError, requireStaff } from "../../../../lib/admin-routes";
 import { parseCoordinatePair } from "@/lib/tracking";
 
 type OrderRow = typeof orders.$inferSelect;
@@ -80,7 +81,7 @@ function redactForUnassignedDriver(order: OrderRow) {
 
 export async function GET(request: Request) {
   try {
-    const db = await requireAdmin(request).catch(() => null);
+    const db = (await requireStaff(request).catch(() => null))?.db ?? null;
 
     if (!db) {
       const driverDb = getDb();
@@ -89,6 +90,9 @@ export async function GET(request: Request) {
       if (!driver) {
         return Response.json({ error: "Not authenticated" }, { status: 401 });
       }
+      // Each driver poll doubles as a dispatch tick: expire stale offers and
+      // offer waiting orders to the next driver.
+      await runDispatch(driverDb).catch((error) => console.warn("dispatch tick failed", error));
       // Drivers get (a) their own orders in full and (b) unassigned delivery
       // orders they could claim, with customer identity and street address
       // withheld until they accept. Other drivers' orders are not returned.
@@ -105,6 +109,7 @@ export async function GET(request: Request) {
         .limit(100);
 
       return Response.json({
+        offers: await offersForDriver(driverDb, driver.id),
         orders: withDriverLocationFallback(rows).map((order) =>
           order.driverId === driver.id
             ? { ...order, items: JSON.parse(order.items) as unknown }
@@ -123,6 +128,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

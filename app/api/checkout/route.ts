@@ -1,3 +1,4 @@
+import { afterOrderPlaced } from "../../../lib/dispatch";
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { ensureBootstrap } from "../../../db/bootstrap";
@@ -133,6 +134,8 @@ export async function POST(request: Request) {
     await db.update(orders).set({ orderNumber }).where(eq(orders.id, inserted.id));
 
     if (payCash) {
+      // Alert staff and start looking for a driver (best-effort).
+      await afterOrderPlaced(db, { ...inserted, orderNumber }).catch((error) => console.warn("afterOrderPlaced failed", error));
       return Response.json({
         mode: "cash",
         order: {

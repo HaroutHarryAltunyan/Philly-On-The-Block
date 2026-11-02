@@ -1,4 +1,5 @@
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../../lib/admin-routes";
+import { audit } from "@/lib/audit";
+import { AuthError, toErrorResponse, requireStaff, MANAGERS, ForbiddenError } from "../../../../../lib/admin-routes";
 import { getMenuImagesBucket } from "../../../../../lib/menu-images";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -14,7 +15,7 @@ const TYPES: Record<string, string> = {
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
 
     const MENU_IMAGES = getMenuImagesBucket();
 
@@ -41,9 +42,12 @@ export async function POST(request: Request) {
     const key = `menu/${crypto.randomUUID()}.${extension}`;
     await MENU_IMAGES.put(key, buffer, { metadata: { contentType } });
 
+    await audit(db, request, actor, "menu.image_upload", key);
+
     return Response.json({ image: `/api/menu-image/${key}` });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

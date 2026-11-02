@@ -1,11 +1,12 @@
+import { audit } from "@/lib/audit";
 import { eq } from "drizzle-orm";
 import { broadcasts, coupons, subscribers } from "../../../../../db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../../lib/admin-routes";
+import { AuthError, toErrorResponse, requireStaff, MANAGERS, ForbiddenError } from "../../../../../lib/admin-routes";
 import { isEmailConfigured, sendEmails } from "../../../../../lib/email";
 
 export async function POST(request: Request) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const payload = (await request.json()) as {
       subject?: string;
       message?: string;
@@ -79,12 +80,15 @@ export async function POST(request: Request) {
       );
     }
 
+    await audit(db, request, actor, "broadcast.send", broadcast?.id ?? "", { sent, failed });
+
     return Response.json(
       { broadcast, sent, failed, total: recipients.length },
       { status: 201 },
     );
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

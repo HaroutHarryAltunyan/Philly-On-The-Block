@@ -1,6 +1,7 @@
+import { audit } from "@/lib/audit";
 import { and, eq } from "drizzle-orm";
 import { menuItemOptions, menuItems } from "../../../../../db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../../lib/admin-routes";
+import { AuthError, toErrorResponse, requireStaff, MANAGERS, ForbiddenError } from "../../../../../lib/admin-routes";
 import {
   attachMenuOptions,
   parseStockQty,
@@ -13,7 +14,7 @@ function idFromParams(_request: Request, { params }: { params: Promise<{ id: str
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request);
     const { id } = await idFromParams(request, context);
     const itemId = Number(id);
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -33,6 +34,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       sortOrder?: number;
       options?: Array<{ name?: string; priceCents?: number }>;
     };
+
+    // Kitchen accounts can switch items on/off and set stock, nothing else.
+    if (actor.role === "kitchen") {
+      const extra = Object.keys(payload).filter((key) => key !== "available" && key !== "stockQty");
+      if (extra.length) {
+        return Response.json({ error: "Kitchen accounts can only change availability and stock" }, { status: 403 });
+      }
+    }
 
     if (payload.priceCents !== undefined && (typeof payload.priceCents !== "number" || payload.priceCents < 0)) {
       return Response.json({ error: "priceCents must be a non-negative number" }, { status: 400 });
@@ -79,16 +88,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
     const [withOptions] = await attachMenuOptions(db, [item]);
 
+    await audit(db, request, actor, "menu.update", itemId, payload);
+
     return Response.json({ item: withOptions });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, MANAGERS);
     const { id } = await idFromParams(request, context);
     const itemId = Number(id);
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -104,9 +116,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     // key, so delete options explicitly to avoid orphans.
     await db.delete(menuItemOptions).where(eq(menuItemOptions.menuItemId, itemId));
     await db.delete(menuItems).where(and(eq(menuItems.id, itemId)));
+    await audit(db, request, actor, "menu.delete", itemId);
     return Response.json({ deleted: itemId });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

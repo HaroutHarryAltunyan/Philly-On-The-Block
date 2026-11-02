@@ -1,6 +1,6 @@
 import { and, asc, desc, gte, inArray, lt } from "drizzle-orm";
 import { orders, reservations } from "../../../../db/schema";
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../lib/admin-routes";
+import { AuthError, requireAdmin, toErrorResponse, ForbiddenError } from "../../../../lib/admin-routes";
 import { restaurantDayBounds } from "../../../../lib/hours";
 
 export async function GET(request: Request) {
@@ -66,6 +66,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }

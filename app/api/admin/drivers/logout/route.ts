@@ -1,3 +1,4 @@
+import { audit, driverActor } from "@/lib/audit";
 import { getDb } from "@/db";
 import { ensureBootstrap } from "@/db/bootstrap";
 import { requestIsSecure } from "@/lib/admin-auth";
@@ -10,7 +11,10 @@ export async function POST(request: Request) {
     const db = getDb();
     await ensureBootstrap(db);
     const driver = await getActiveDriverFromRequest(request, db);
-    if (driver) await bumpDriverSessionVersion(db, driver.id);
+    if (driver) {
+      await bumpDriverSessionVersion(db, driver.id);
+      await audit(db, request, driverActor(driver), "driver.logout");
+    }
   } catch (error) {
     console.error("Failed to revoke driver session on logout:", error);
   }

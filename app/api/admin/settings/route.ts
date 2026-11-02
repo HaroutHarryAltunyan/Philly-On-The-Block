@@ -1,4 +1,5 @@
-import { AuthError, requireAdmin, toErrorResponse } from "../../../../lib/admin-routes";
+import { audit } from "@/lib/audit";
+import { AuthError, requireAdmin, toErrorResponse, requireStaff, OWNER_ONLY, ForbiddenError } from "../../../../lib/admin-routes";
 import {
   getSetting,
   hashPasscode,
@@ -50,13 +51,14 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    const db = await requireAdmin(request);
+    const { db, actor } = await requireStaff(request, OWNER_ONLY);
     const payload = (await request.json()) as {
       weeklyHours?: Record<string, [string, string]>;
       passcode?: string;
@@ -121,6 +123,7 @@ export async function PATCH(request: Request) {
       const parsed = Number(raw);
       return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
     };
+    await audit(db, request, actor, "settings.update", "", { keys: Object.keys(payload) });
     return Response.json({
       settings: {
         weeklyHours: hoursRaw ? (JSON.parse(hoursRaw) as unknown) : null,
@@ -134,6 +137,7 @@ export async function PATCH(request: Request) {
     });
   } catch (error) {
     if (error instanceof AuthError) return Response.json({ error: error.message }, { status: 401 });
+    if (error instanceof ForbiddenError) return Response.json({ error: error.message }, { status: 403 });
     return toErrorResponse(error);
   }
 }
