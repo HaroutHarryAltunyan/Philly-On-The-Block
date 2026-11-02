@@ -213,6 +213,26 @@ const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [
     ddl: "CREATE UNIQUE INDEX IF NOT EXISTS subscribers_email_idx ON subscribers (email)",
   },
   {
+    name: "staff_users_username_idx",
+    ddl: "CREATE UNIQUE INDEX IF NOT EXISTS staff_users_username_idx ON staff_users (username)",
+  },
+  {
+    name: "audit_logs_created_at_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs (created_at)",
+  },
+  {
+    name: "delivery_offers_order_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS delivery_offers_order_idx ON delivery_offers (order_id)",
+  },
+  {
+    name: "delivery_offers_driver_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS delivery_offers_driver_idx ON delivery_offers (driver_id)",
+  },
+  {
+    name: "push_tokens_kind_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS push_tokens_kind_idx ON push_tokens (kind)",
+  },
+  {
     name: "delivery_offers_live_order_idx",
     ddl: "CREATE UNIQUE INDEX IF NOT EXISTS delivery_offers_live_order_idx ON delivery_offers (order_id) WHERE status = 'offered'",
   },
