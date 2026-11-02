@@ -5,6 +5,7 @@ import { trackAddToCart, trackPurchase } from "../lib/fbq";
 import SiteHeader from "./components/site-header";
 import { getBusinessStatus, formatClock } from "../lib/hours";
 import { CARD_PAYMENTS_ENABLED } from "../lib/payment-config";
+import { SERVICE_AREAS, SITE_NAME, SITE_URL, STORE_PHONE_TEL } from "../lib/site";
 
 type Category = "Cheesesteaks" | "Sides" | "Drinks";
 
@@ -80,29 +81,73 @@ function buildFullAddress(line1: string, line2: string, city: string, state: str
   return region.length > 0 ? `${address}${address ? ", " : ""}${region.join(" ")}` : address;
 }
 
+// Server-rendered fallback so the menu (and its prices) is in the initial HTML
+// for search engines and slow connections. The live menu from /api/menu
+// replaces it as soon as it loads; ids match the database so carts still work.
+const FALLBACK_MENU: MenuItem[] = [
+  { id: 1, name: "Philly OTB", category: "Cheesesteaks", description: "Freshly baked bread, premium meat, grilled onions, spicy pepper, sharp white American, OTB Ranch, and OTB Tang.", price: 21.99, badge: "House favorite", art: "philly-otb", image: "/images/menu/philly-otb.jpg", photo: true, imagePosition: "50% 50%", stock: null, options: [] },
+  { id: 2, name: "Classic Philly", category: "Cheesesteaks", description: "Premium meat topped with grilled onions and sharp white American.", price: 21.99, art: "classic-philly", image: "/images/menu/classic-philly.jpg", photo: true, imagePosition: "50% 56%", stock: null, options: [] },
+  { id: 3, name: "Philly Melt", category: "Cheesesteaks", description: "Choice of meat, grilled onions, and sharp white American in Texas toast.", price: 15.99, art: "philly-melt", image: "/images/menu/philly-melt.jpg", photo: true, imagePosition: "50% 52%", stock: null, options: [] },
+  { id: 10, name: "Fries", category: "Sides", description: "Shoestring fries topped with house seasoning.", price: 5.5, art: "philly-otb", image: "/images/menu/philly-otb.jpg", photo: true, imagePosition: "50% 78%", stock: null, options: [] },
+  { id: 5, name: "OTB Fries", category: "Sides", description: "Shoestring fries, steak, grilled onions, sharp white American, OTB Ranch, and OTB Tang.", price: 20.99, badge: "Loaded", art: "otb-fries", image: "/images/menu/otb-fries.jpg", photo: true, imagePosition: "50% 52%", stock: null, options: [] },
+];
+
+// Fallback for the server render; the dashboard-managed hours replace it.
+const FALLBACK_HOURS: Record<string, [number, number] | null> = {
+  Monday: null,
+  Tuesday: [720, 1260],
+  Wednesday: [720, 1260],
+  Thursday: [720, 1260],
+  Friday: [720, 1260],
+  Saturday: [960, 1380],
+  Sunday: [960, 1380],
+};
+
+const FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "Where can I get the best Philly cheesesteak in Burbank?",
+    a: "Philly on the Block at 2600 W Victory Blvd, Burbank, CA 91505. Every cheesesteak is hand-chopped to order on freshly baked bread with premium meat, grilled onions, and sharp white American — order online for pickup or delivery.",
+  },
+  {
+    q: "What’s on a Philly OTB cheesesteak?",
+    a: "Our house favorite: freshly baked bread, premium meat, grilled onions, spicy pepper, sharp white American, and both house sauces — OTB Ranch and OTB Tang. Prefer it simple? The Classic Philly is meat, grilled onions, and sharp white American.",
+  },
+  {
+    q: "Do you deliver cheesesteaks near me?",
+    a: "Yes. We deliver around Burbank and nearby neighborhoods including Glendale, North Hollywood, Toluca Lake, Studio City, and Universal City. Order on this site, choose Delivery, and track your driver live.",
+  },
+  {
+    q: "What are your hours?",
+    a: "Tuesday–Friday 12 PM–9 PM and Saturday–Sunday 4 PM–11 PM for late-night cheesesteaks. Closed Mondays. Live hours are always shown on this page.",
+  },
+  {
+    q: "Do you cater events?",
+    a: "Yes — cheesesteak catering for birthdays, office lunches, film and studio sets, and private parties around Burbank and the San Fernando Valley. Request a date on our events page.",
+  },
+  {
+    q: "How do I pay?",
+    a: "Order online, then pay in person — cash or card — at pickup or when your delivery arrives.",
+  },
+];
+
 const restaurantSchema = {
   "@context": "https://schema.org",
-  "@type": "Restaurant",
-  name: "Philly on the Block",
+  "@type": ["Restaurant", "FoodEstablishment"],
+  "@id": `${SITE_URL}/#restaurant`,
+  name: SITE_NAME,
+  alternateName: "Philly OTB",
   description:
-    "Hand-chopped cheesesteaks, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd in Burbank, California. Pickup, delivery, and event catering.",
-  url: "https://philly-on-the-block.altunyanharoutyunh93.chatgpt.site",
-  image: "/og.png",
-  telephone: "+1-818-406-6053",
-  servesCuisine: ["American", "Cheesesteaks", "Sandwiches"],
+    "Hand-chopped Philly cheesesteaks, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd in Burbank, California. Pickup, delivery, and cheesesteak catering.",
+  url: SITE_URL,
+  logo: `${SITE_URL}/images/Philly_On_The_Block_Logo.png`,
+  image: [`${SITE_URL}/og.png`, `${SITE_URL}/images/menu/classic-philly.jpg`, `${SITE_URL}/images/menu/otb-fries.jpg`],
+  telephone: STORE_PHONE_TEL,
+  servesCuisine: ["Cheesesteaks", "Philly Cheesesteak", "Sandwiches", "American"],
   priceRange: "$$",
   currenciesAccepted: "USD",
   paymentAccepted: "Cash, Credit Card",
   acceptsReservations: "True",
-  keywords: [
-    "cheesesteaks",
-    "philly cheesesteak",
-    "cheesesteak burbank",
-    "best cheesesteaks in burbank",
-    "food truck burbank",
-    "burbank restaurants",
-    "delivery burbank",
-  ],
+  hasMenu: `${SITE_URL}/#menu`,
   address: {
     "@type": "PostalAddress",
     streetAddress: "2600 W Victory Blvd",
@@ -116,37 +161,52 @@ const restaurantSchema = {
     latitude: 34.1841,
     longitude: -118.3396,
   },
+  hasMap: "https://www.google.com/maps/search/?api=1&query=Philly+on+the+Block+2600+W+Victory+Blvd+Burbank+CA+91505",
+  areaServed: SERVICE_AREAS.map((name) => ({ "@type": "City", name })),
   openingHoursSpecification: [
     { "@type": "OpeningHoursSpecification", dayOfWeek: ["Tuesday", "Wednesday", "Thursday", "Friday"], opens: "12:00", closes: "21:00" },
     { "@type": "OpeningHoursSpecification", dayOfWeek: ["Saturday", "Sunday"], opens: "16:00", closes: "23:00" },
   ],
+  potentialAction: {
+    "@type": "OrderAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${SITE_URL}/#menu`,
+      actionPlatform: ["http://schema.org/DesktopWebPlatform", "http://schema.org/MobileWebPlatform"],
+    },
+    deliveryMethod: ["http://purl.org/goodrelations/v1#DeliveryModePickUp", "http://purl.org/goodrelations/v1#DeliveryModeOwnFleet"],
+  },
   sameAs: ["https://www.yelp.com/menu/philly-on-the-block-burbank"],
 };
 
 const menuSchema = {
   "@context": "https://schema.org",
   "@type": "Menu",
-  name: "Philly on the Block Menu",
-  url: "https://philly-on-the-block.altunyanharoutyunh93.chatgpt.site/#menu",
-  hasMenuSection: [
-    {
-      "@type": "MenuSection",
-      name: "Cheesesteaks",
-      hasMenuItem: [
-        { "@type": "MenuItem", name: "Philly OTB", description: "Freshly baked bread, premium meat, grilled onions, spicy pepper, sharp white American, OTB Ranch, and OTB Tang.", offers: { "@type": "Offer", price: "21.99", priceCurrency: "USD" } },
-        { "@type": "MenuItem", name: "Classic Philly", description: "Premium meat topped with grilled onions and sharp white American.", offers: { "@type": "Offer", price: "21.99", priceCurrency: "USD" } },
-        { "@type": "MenuItem", name: "Philly Melt", description: "Choice of meat, grilled onions, and sharp white American in Texas toast.", offers: { "@type": "Offer", price: "15.99", priceCurrency: "USD" } },
-      ],
-    },
-    {
-      "@type": "MenuSection",
-      name: "Sides",
-      hasMenuItem: [
-        { "@type": "MenuItem", name: "Fries", description: "Shoestring fries topped with house seasoning.", offers: { "@type": "Offer", price: "5.50", priceCurrency: "USD" } },
-        { "@type": "MenuItem", name: "OTB Fries", description: "Shoestring fries, steak, grilled onions, sharp white American, OTB Ranch, and OTB Tang.", offers: { "@type": "Offer", price: "20.99", priceCurrency: "USD" } },
-      ],
-    },
-  ],
+  "@id": `${SITE_URL}/#menu`,
+  name: "Philly on the Block Cheesesteak Menu",
+  url: `${SITE_URL}/#menu`,
+  inLanguage: "en-US",
+  hasMenuSection: (["Cheesesteaks", "Sides"] as const).map((section) => ({
+    "@type": "MenuSection",
+    name: section,
+    hasMenuItem: FALLBACK_MENU.filter((item) => item.category === section).map((item) => ({
+      "@type": "MenuItem",
+      name: item.name,
+      description: item.description,
+      image: `${SITE_URL}${item.image}`,
+      offers: { "@type": "Offer", price: item.price.toFixed(2), priceCurrency: "USD" },
+    })),
+  })),
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((faq) => ({
+    "@type": "Question",
+    name: faq.q,
+    acceptedAnswer: { "@type": "Answer", text: faq.a },
+  })),
 };
 
 type CheckoutQuote = {
@@ -364,7 +424,7 @@ export default function Home() {
   }, []);
 
   const hours = liveHours;
-  const menuItemsSource = useMemo(() => liveMenu ?? [], [liveMenu]);
+  const menuItemsSource = useMemo(() => liveMenu ?? FALLBACK_MENU, [liveMenu]);
 
   useEffect(() => {
     if (!pendingRestore) return;
@@ -848,6 +908,7 @@ export default function Home() {
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(menuSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <a className="skip-link" href="#menu">
         Skip to menu
       </a>
@@ -862,6 +923,7 @@ export default function Home() {
         <div className="hero-copy">
           <div className="eyebrow"><span>Cheesesteaks · built for the block</span> Burbank, CA</div>
           <h1>
+            <span className="sr-only">Philly Cheesesteaks in Burbank, CA — </span>
             Built on
             <span>the block.</span>
           </h1>
@@ -949,9 +1011,7 @@ export default function Home() {
         </div>
 
         <div className="order-layout">
-          {liveMenu === null ? (
-            <div className="empty-state">Loading menu…</div>
-          ) : visibleItems.length === 0 ? (
+          {visibleItems.length === 0 ? (
             <div className="empty-state">Nothing on the menu right now — check back soon.</div>
           ) : (
           <div className="menu-grid">
@@ -1281,6 +1341,29 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="faq-section" id="faq" aria-labelledby="faq-title">
+        <div className="faq-intro">
+          <span className="kicker">Burbank cheesesteak FAQ</span>
+          <h2 id="faq-title">Good questions.</h2>
+          <p>
+            Looking for the best Philly cheesesteak near you? Philly on the Block serves hand-chopped
+            cheesesteaks, loaded cheesesteak fries, and cold Cokes from 2600 W Victory Blvd in Burbank —
+            minutes from Glendale, North Hollywood, Toluca Lake, Studio City, and Universal City.
+          </p>
+        </div>
+        <div className="faq-list">
+          {FAQS.map((faq) => (
+            <details key={faq.q}>
+              <summary>
+                <h3>{faq.q}</h3>
+                <span aria-hidden="true">+</span>
+              </summary>
+              <p>{faq.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       <section className="visit-section" id="visit">
         <div className="visit-card">
           <span className="kicker">Find the block</span>
@@ -1292,7 +1375,7 @@ export default function Home() {
             <a className="visit-phone" href="tel:+18184066053">(818) 406-6053</a>
           </address>
           <div className="hours">
-            {(liveHours ? Object.entries(liveHours) : []).map(([day, schedule]) => (
+            {Object.entries(liveHours ?? FALLBACK_HOURS).map(([day, schedule]) => (
               <div key={day}><span>{day}</span><strong>{schedule ? `${formatClock(schedule[0])}–${formatClock(schedule[1])}` : "Closed"}</strong></div>
             ))}
           </div>
@@ -1350,6 +1433,7 @@ export default function Home() {
           <a href="#menu">Menu</a>
           <a href="/reserve">Events</a>
           <a href="#visit">Hours</a>
+          <a href="#faq">FAQ</a>
           <a href="/track">Track order</a>
           <a href="/portal">Rewards</a>
           <a href="tel:+18184066053">Call</a>

@@ -34,6 +34,15 @@ export default function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
   const { pathname } = request.nextUrl;
 
+  // One canonical host: send www. to the bare domain with a permanent redirect.
+  if (host === "www.phillyontheblock.com") {
+    const target = new URL(request.url);
+    target.host = "phillyontheblock.com";
+    target.port = "";
+    target.protocol = "https:";
+    return withSecurityHeaders(NextResponse.redirect(target, 301));
+  }
+
   if (ADMIN_HOSTS.has(host) && pathname === "/") {
     return withSecurityHeaders(NextResponse.redirect(new URL("/dashboard", request.url)));
   }
@@ -43,7 +52,13 @@ export default function proxy(request: NextRequest) {
     );
   }
 
-  return withSecurityHeaders(NextResponse.next());
+  const response = withSecurityHeaders(NextResponse.next());
+  // The admin/driver hosts serve the same Worker; keep them out of search
+  // results so they don't compete with phillyontheblock.com.
+  if (ADMIN_HOSTS.has(host) || DRIVER_HOSTS.has(host)) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return response;
 }
 
 export const config = {

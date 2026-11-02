@@ -1,52 +1,59 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import "./globals.css";
 import PwaSetup from "./components/pwa-setup";
 import MetaPixel from "./components/meta-pixel";
 import { getMetaPixelId } from "../lib/meta-pixel";
-import { SITE_NAME, SITE_URL, SEO_KEYWORDS } from "../lib/site";
+import { SITE_NAME, SITE_URL, SEO_KEYWORDS, GOOGLE_SITE_VERIFICATION } from "../lib/site";
 
-const title = "Cheesesteaks in Burbank, CA | Philly on the Block";
+const title = "Best Philly Cheesesteaks in Burbank, CA | Philly on the Block";
 const description =
-  "Hand-chopped cheesesteaks, loaded OTB Fries, and cold Cokes in Burbank, CA. Pickup or delivery at 2600 W Victory Blvd — freshly baked bread, premium meat, and house sauces.";
+  "Burbank's Philly cheesesteak spot: hand-chopped cheesesteaks on freshly baked bread, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd. Order pickup or delivery online.";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
-  const origin = host ? `${protocol}://${host}` : SITE_URL;
-  const socialImage = `${origin}/og.png`;
+// Always point canonicals, Open Graph URLs, and images at the public domain.
+// The same Worker also answers on admin./driver. subdomains; deriving these
+// from the request host made those hosts look like duplicate copies of the
+// site to search engines.
+const socialImage = `${SITE_URL}/og.png`;
+const socialDescription =
+  "Hand-chopped Philly cheesesteaks, loaded OTB Fries, and cold Cokes in Burbank, CA. Pickup or delivery near Glendale, North Hollywood, and Toluca Lake.";
 
-  return {
-    metadataBase: new URL(origin),
-    title,
-    description,
-    keywords: SEO_KEYWORDS,
-    alternates: { canonical: "/" },
-    robots: {
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: { default: title, template: `%s | ${SITE_NAME}` },
+  description,
+  applicationName: SITE_NAME,
+  keywords: SEO_KEYWORDS,
+  category: "restaurant",
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
       index: true,
       follow: true,
       "max-image-preview": "large",
       "max-snippet": -1,
+      "max-video-preview": -1,
     },
-    formatDetection: { telephone: false },
-    openGraph: {
-      title,
-      description: "Hand-chopped cheesesteaks, loaded OTB Fries, and cold Cokes in Burbank, California.",
-      url: origin,
-      siteName: SITE_NAME,
-      locale: "en_US",
-      type: "website",
-      images: [{ url: socialImage, width: 1733, height: 909, alt: "Philly on the Block cheesesteaks in Burbank" }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description: "Hand-chopped cheesesteaks, loaded OTB Fries, and cold Cokes in Burbank, California.",
-      images: [socialImage],
-    },
-  };
-}
+  },
+  formatDetection: { telephone: false },
+  ...(GOOGLE_SITE_VERIFICATION ? { verification: { google: GOOGLE_SITE_VERIFICATION } } : {}),
+  openGraph: {
+    title,
+    description: socialDescription,
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    locale: "en_US",
+    type: "website",
+    images: [{ url: socialImage, width: 1733, height: 909, alt: "Philly on the Block cheesesteaks in Burbank, CA" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description: socialDescription,
+    images: [socialImage],
+  },
+};
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const pixelId = await getMetaPixelId();
@@ -82,9 +89,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
+              "@id": `${SITE_URL}/#website`,
               name: SITE_NAME,
+              alternateName: ["Philly OTB", "Philly on the Block Burbank"],
               url: SITE_URL,
               description,
+              inLanguage: "en-US",
+              publisher: { "@id": `${SITE_URL}/#restaurant` },
             }),
           }}
         />
