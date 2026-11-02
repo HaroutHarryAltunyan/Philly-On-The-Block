@@ -1428,7 +1428,17 @@ export default function Home() {
         <a className="brand footer-brand" href="#top">
           <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" loading="lazy" />
         </a>
-        <p>Fresh bread. Big flavor. Block energy.</p>
+        <div className="footer-social">
+          <p>Fresh bread. Big flavor. Block energy.</p>
+          <a className="instagram-link" href={SOCIAL_PROFILES.instagram} target="_blank" rel="noopener me" aria-label="Follow Philly on the Block on Instagram, @philly_ontheblock">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+              <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="none" stroke="currentColor" strokeWidth="2" />
+              <circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" strokeWidth="2" />
+              <circle cx="17.6" cy="6.4" r="1.3" fill="currentColor" />
+            </svg>
+            <span>@philly_ontheblock</span>
+          </a>
+        </div>
         <div className="footer-links">
           <a href="#menu">Menu</a>
           <a href="/reserve">Events</a>
@@ -1436,7 +1446,6 @@ export default function Home() {
           <a href="#faq">FAQ</a>
           <a href="/track">Track order</a>
           <a href="/portal">Rewards</a>
-          <a href={SOCIAL_PROFILES.instagram} target="_blank" rel="noopener me">Instagram</a>
           <a href={SOCIAL_PROFILES.yelp} target="_blank" rel="noopener">Yelp</a>
           <a href="tel:+18184066053">Call</a>
         </div>
