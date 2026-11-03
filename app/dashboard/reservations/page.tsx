@@ -219,7 +219,10 @@ export default function ReservationsPage() {
                       {reservation.name} · {reservation.phone}
                       {reservation.email && <> · {reservation.email}</>}
                     </td>
-                    <td>{reservation.notes || "—"}</td>
+                    <td>
+                      {reservation.location && <><strong>Where:</strong> {reservation.location}<br /></>}
+                      {reservation.notes || (reservation.location ? "" : "—")}
+                    </td>
                     <td>
                       <span className={`status-chip status-${reservation.status}`}>
                         {RESERVATION_STATUS_LABELS[reservation.status]}

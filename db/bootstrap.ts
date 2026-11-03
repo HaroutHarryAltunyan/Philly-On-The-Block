@@ -161,6 +161,29 @@ const TABLES: Array<{ name: string; ddl: string }> = [
     )`,
   },
   {
+    name: "customers",
+    ddl: `CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      phone_key TEXT NOT NULL DEFAULT '',
+      session_version INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      last_login_at INTEGER
+    )`,
+  },
+  {
+    name: "customer_login_tokens",
+    ddl: `CREATE TABLE IF NOT EXISTS customer_login_tokens (
+      token_hash TEXT PRIMARY KEY NOT NULL,
+      email TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      used_at INTEGER,
+      created_at INTEGER NOT NULL
+    )`,
+  },
+  {
     name: "revoked_sessions",
     ddl: `CREATE TABLE IF NOT EXISTS revoked_sessions (
       jti TEXT PRIMARY KEY NOT NULL,
@@ -243,6 +266,22 @@ const UNIQUE_INDEXES: Array<{ name: string; ddl: string }> = [
   {
     name: "orders_phone_key_idx",
     ddl: "CREATE INDEX IF NOT EXISTS orders_phone_key_idx ON orders (phone_key)",
+  },
+  {
+    name: "customers_email_idx",
+    ddl: "CREATE UNIQUE INDEX IF NOT EXISTS customers_email_idx ON customers (email)",
+  },
+  {
+    name: "customer_login_tokens_email_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS customer_login_tokens_email_idx ON customer_login_tokens (email)",
+  },
+];
+
+// Indexes on columns added by COLUMN_UPGRADES; created after those run.
+const LATE_INDEXES: Array<{ name: string; ddl: string }> = [
+  {
+    name: "orders_customer_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS orders_customer_idx ON orders (customer_id)",
   },
 ];
 
@@ -362,6 +401,16 @@ const COLUMN_UPGRADES: Array<{ table: string; column: string; ddl: string }> = [
     column: "event_type",
     ddl: "ALTER TABLE reservations ADD COLUMN event_type TEXT NOT NULL DEFAULT ''",
   },
+  {
+    table: "reservations",
+    column: "location",
+    ddl: "ALTER TABLE reservations ADD COLUMN location TEXT NOT NULL DEFAULT ''",
+  },
+  {
+    table: "orders",
+    column: "customer_id",
+    ddl: "ALTER TABLE orders ADD COLUMN customer_id INTEGER",
+  },
 ];
 
 const FEE_SETTINGS: Record<string, string> = {
@@ -416,6 +465,10 @@ async function bootstrap(db: Db): Promise<void> {
     }
   }
 
+  for (const index of LATE_INDEXES) {
+    await db.run(sql.raw(index.ddl));
+  }
+
   const ensureSetting = async (key: string, value: string) => {
     const existing = await db.select().from(schema.settings).where(sql`${schema.settings.key} = ${key}`);
     if (existing.length === 0) {
@@ -426,6 +479,10 @@ async function bootstrap(db: Db): Promise<void> {
   await ensureSetting("authSecret", crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""));
   await ensureSetting(
     "adminSessionSecret",
+    crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""),
+  );
+  await ensureSetting(
+    "customerSessionSecret",
     crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""),
   );
   const passcodeSalt = crypto.randomUUID().replaceAll("-", "").slice(0, 16);

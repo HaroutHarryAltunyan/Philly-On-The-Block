@@ -4,6 +4,7 @@ import { reservations } from "../../../db/schema";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
 import { isCrossOrigin, crossOriginResponse } from "../../../lib/csrf";
+import { pushToStaff } from "../../../lib/push";
 
 const RESERVATION_MAX_PER_WINDOW = 5;
 const RESERVATION_WINDOW_MS = 60 * 60 * 1000;
@@ -11,10 +12,14 @@ const RESERVATION_WINDOW_MS = 60 * 60 * 1000;
 const NAME_RE = /^[a-zA-Z0-9 .,'’-]{1,60}$/;
 const PHONE_DIGITS = /^\d{7,15}$/;
 
+// Keep in sync with EVENT_TYPE_OPTIONS on the /events page.
 const EVENT_TYPES = [
-  "Birthday party",
-  "Corporate event",
   "Private party",
+  "Office lunch",
+  "Birthday party",
+  "Film production",
+  "Studio set",
+  "Corporate event",
   "Catering order",
   "Other",
 ] as const;
@@ -30,8 +35,16 @@ export async function POST(request: Request) {
       eventType?: string;
       guestCount?: number;
       dateTime?: string;
+      location?: string;
       message?: string;
+      // Honeypot: hidden from people, filled in by form-stuffing bots.
+      website?: string;
     };
+
+    if (typeof payload.website === "string" && payload.website.trim() !== "") {
+      // Pretend success so the bot doesn't retry with a different payload.
+      return Response.json({ reservation: { id: 0, name: "", eventType: "", partySize: 0, dateTime: new Date().toISOString(), status: "pending" } }, { status: 201 });
+    }
 
     const name = payload.name?.trim() ?? "";
     const email = (payload.email?.trim() ?? "").toLowerCase();
@@ -40,6 +53,7 @@ export async function POST(request: Request) {
     const guestCount = Math.round(Number(payload.guestCount));
     const dateTime = payload.dateTime ? new Date(payload.dateTime) : null;
     const message = (payload.message?.trim() ?? "").slice(0, 500);
+    const location = (payload.location?.trim() ?? "").slice(0, 200);
 
     if (!NAME_RE.test(name)) {
       return Response.json({ error: "Enter your name (letters, numbers, and basic punctuation)." }, { status: 400 });
@@ -81,10 +95,18 @@ export async function POST(request: Request) {
         partySize: guestCount,
         dateTime,
         notes: message,
+        location,
         status: "pending",
         createdAt: new Date(),
       })
       .returning();
+
+    // Let staff know right away (best-effort; never fails the request).
+    await pushToStaff(db, {
+      title: "New event request",
+      body: `${eventType} · ${guestCount} guests · ${name}`,
+      data: { kind: "reservation", id: reservation.id },
+    }).catch(() => undefined);
 
     return Response.json(
       {

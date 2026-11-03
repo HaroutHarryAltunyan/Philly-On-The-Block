@@ -85,6 +85,13 @@
       "when": 1793646465915,
       "tag": "0011_nice_red_shift",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793743934090,
+      "tag": "0012_nifty_vampiro",
+      "breakpoints": true
     }
   ]
 }

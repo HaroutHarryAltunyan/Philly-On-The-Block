@@ -67,6 +67,7 @@ export type Reservation = {
   partySize: number;
   dateTime: string;
   notes: string;
+  location?: string;
   status: "pending" | "confirmed" | "cancelled";
   createdAt: string;
 };

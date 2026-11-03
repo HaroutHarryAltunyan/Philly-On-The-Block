@@ -18,6 +18,8 @@ import {
 import { geocodeAddress } from "../../../lib/tracking";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../lib/rate-limit";
 import { isCrossOrigin, crossOriginResponse } from "../../../lib/csrf";
+import { customerFromRequest } from "../../../lib/customer-auth";
+import { customers } from "../../../db/schema";
 
 const CHECKOUT_MAX_PER_WINDOW = 10;
 const CHECKOUT_WINDOW_MS = 10 * 60 * 1000;
@@ -44,6 +46,10 @@ export async function POST(request: Request) {
     if (!limited.allowed) {
       return rateLimitResponse(limited) ?? Response.json({ error: "Too many requests" }, { status: 429 });
     }
+
+    // Signed-in customers get the order linked to their account. Guest
+    // checkout is unchanged; a session lookup failure never blocks an order.
+    const customer = await customerFromRequest(db, request).catch(() => null);
 
     const quote = await computeOrderQuote(db, payload);
     if ("error" in quote) {
@@ -105,7 +111,7 @@ export async function POST(request: Request) {
         name: parsed.name,
         phone: parsed.phone,
         phoneKey: parsed.phoneKey,
-        email: parsed.email,
+        email: parsed.email || customer?.email || "",
         address: parsed.address,
         destLat: parsed.destLat,
         destLng: parsed.destLng,
@@ -126,12 +132,27 @@ export async function POST(request: Request) {
         paymentMethod: payCash ? "cash" : "",
         stripeSessionId: "",
         deliveryPin: parsed.fulfillment === "delivery" ? randomDeliveryPin() : "",
+        customerId: customer?.id ?? null,
         createdAt: new Date(),
       })
       .returning();
 
     const orderNumber = `PTB-${String(inserted.id).padStart(3, "0")}`;
     await db.update(orders).set({ orderNumber }).where(eq(orders.id, inserted.id));
+
+    // First order on an account fills in the profile name and phone (which
+    // is what the account's rewards balance is looked up by).
+    if (customer && (!customer.phoneKey || !customer.name)) {
+      await db
+        .update(customers)
+        .set({
+          name: customer.name || parsed.name.slice(0, 60),
+          phone: customer.phoneKey ? customer.phone : parsed.phone.slice(0, 20),
+          phoneKey: customer.phoneKey || parsed.phoneKey,
+        })
+        .where(eq(customers.id, customer.id))
+        .catch((error) => console.warn("Profile fill failed", error));
+    }
 
     if (payCash) {
       // Alert staff and start looking for a driver (best-effort).

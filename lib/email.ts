@@ -32,14 +32,17 @@ function linesToHtml(value: string): string {
   return escapeHtml(value).replace(/\n/g, "<br>");
 }
 
-export function buildEmailContent(message: string): { text: string; html: string } {
-  const text = `${message}\n\n${FOOTER}`;
+const TRANSACTIONAL_FOOTER =
+  "Philly on the Block · 2600 W Victory Blvd, Burbank, CA · (818) 406-6053 · phillyontheblock.com";
+
+export function buildEmailContent(message: string, footer = FOOTER): { text: string; html: string } {
+  const text = `${message}\n\n${footer}`;
   const html = `<!doctype html>
 <html>
 <body style="margin:0;padding:24px;background:#f7f7f5;font-family:Arial,Helvetica,sans-serif;color:#16161a;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e8e8e4;border-radius:8px;padding:24px;">
     <div style="font-size:15px;line-height:1.55;">${linesToHtml(message)}</div>
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #efefec;font-size:12px;line-height:1.5;color:#5c6b7a;">${linesToHtml(FOOTER)}</div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #efefec;font-size:12px;line-height:1.5;color:#5c6b7a;">${linesToHtml(footer)}</div>
   </div>
 </body>
 </html>`;
@@ -147,4 +150,24 @@ export async function sendEmails(
   }
 
   return { sent, failed: recipients.length - sent };
+}
+
+/**
+ * One-off service email (sign-in links, staff notifications). Uses the
+ * transactional footer, not the newsletter unsubscribe footer. Returns false
+ * instead of throwing when sending isn't configured or the API refuses.
+ */
+export async function sendTransactionalEmail(to: string, subject: string, message: string): Promise<boolean> {
+  const accountId = (env as unknown as WorkerEnv).CLOUDFLARE_ACCOUNT_ID?.trim();
+  const token = (env as unknown as WorkerEnv).CLOUDFLARE_EMAIL_TOKEN?.trim();
+  if (!accountId || !token) return false;
+  const { mailFrom, mailFromName } = senderAddress();
+  const { text, html } = buildEmailContent(message, TRANSACTIONAL_FOOTER);
+  const sent = await sendBatch(
+    emailApiUrl(accountId),
+    { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    { mail_from: mailFrom, mail_from_name: mailFromName, subject, text, html },
+    [to],
+  );
+  return sent === 1;
 }

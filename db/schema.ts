@@ -85,6 +85,8 @@ export const orders = sqliteTable(
     // 4-digit proof-of-delivery code shown to the customer; the driver must
     // enter it to mark a delivery complete. Empty for pickup/legacy orders.
     deliveryPin: text("delivery_pin").notNull().default(""),
+    // Signed-in customer who placed the order (null for guest checkout).
+    customerId: integer("customer_id"),
     paidAt: integer("paid_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
@@ -92,6 +94,7 @@ export const orders = sqliteTable(
     index("orders_status_idx").on(table.status),
     index("orders_created_at_idx").on(table.createdAt),
     index("orders_phone_key_idx").on(table.phoneKey),
+    index("orders_customer_idx").on(table.customerId),
   ],
 );
 
@@ -106,6 +109,7 @@ export const reservations = sqliteTable(
     partySize: integer("party_size").notNull(),
     dateTime: integer("date_time", { mode: "timestamp" }).notNull(),
     notes: text("notes").notNull().default(""),
+    location: text("location").notNull().default(""),
     status: text("status", { enum: ["pending", "confirmed", "cancelled"] })
       .notNull()
       .default("pending"),
@@ -268,4 +272,36 @@ export const pushTokens = sqliteTable(
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (table) => [index("push_tokens_kind_idx").on(table.kind)],
+);
+
+// Customer accounts. Sign-in is passwordless: a one-time link is emailed and
+// the account is created on first successful sign-in. Points stay keyed by
+// phone (see lib/points.ts); the profile phone is the one shown in the account.
+export const customers = sqliteTable(
+  "customers",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    email: text("email").notNull(),
+    name: text("name").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    phoneKey: text("phone_key").notNull().default(""),
+    // Bumped on "sign out everywhere" so every issued session stops verifying.
+    sessionVersion: integer("session_version").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
+  },
+  (table) => [uniqueIndex("customers_email_idx").on(table.email)],
+);
+
+// One-time sign-in links. Only a SHA-256 of the token is stored.
+export const customerLoginTokens = sqliteTable(
+  "customer_login_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    email: text("email").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+    usedAt: integer("used_at"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("customer_login_tokens_email_idx").on(table.email)],
 );
