@@ -100,22 +100,6 @@ export default async function Home() {
         <img className="events-teaser-truck" src="/images/otb-food-truck.png" alt="The Philly on the Block food truck" loading="lazy" decoding="async" width={1390} height={1017} />
       </section>
 
-      <section className="section section-blue visit-strip" aria-labelledby="visit-title">
-        <div>
-          <p className="eyebrow">Find the block</p>
-          <RevealWords id="visit-title" className="display-xl" text="Pull up hungry." />
-          <address className="visit-address">
-            <a href={DIRECTIONS} target="_blank" rel="noopener noreferrer">2600 W Victory Blvd<br />Burbank, CA 91505</a>
-            <a href={`tel:${STORE_PHONE_TEL}`}>{STORE_PHONE_DISPLAY}</a>
-          </address>
-          <div className="stack-actions">
-            <a className="btn btn-dark" href={DIRECTIONS} target="_blank" rel="noopener noreferrer">Get directions ↗</a>
-            <a className="btn btn-ghost-dark" href="/visit">Map &amp; details</a>
-          </div>
-        </div>
-        <HoursList />
-      </section>
-
       <section className="section section-cream faq" aria-labelledby="faq-title">
         <div className="section-head">
           <div>
@@ -138,6 +122,31 @@ export default async function Home() {
             </details>
           ))}
         </div>
+      </section>
+      <section className="section section-blue visit-strip" id="visit" aria-labelledby="visit-title">
+        <div>
+          <p className="eyebrow">Find the block</p>
+          <RevealWords id="visit-title" className="display-xl" text="Pull up hungry." />
+          <address className="visit-address">
+            <a href={DIRECTIONS} target="_blank" rel="noopener noreferrer">2600 W Victory Blvd<br />Burbank, CA 91505</a>
+            <a href={`tel:${STORE_PHONE_TEL}`}>{STORE_PHONE_DISPLAY}</a>
+          </address>
+          <HoursList />
+          <div className="stack-actions visit-actions-row">
+            <a className="btn btn-dark" href={DIRECTIONS} target="_blank" rel="noopener noreferrer">Get directions ↗</a>
+            <a className="btn btn-ghost-dark" href="/visit">Map &amp; details</a>
+          </div>
+        </div>
+        {/* The original site's illustrated street map: Victory Blvd x Buena Vista, the truck, and the P/B pin. */}
+        <a className="map-card" href={DIRECTIONS} target="_blank" rel="noopener noreferrer" aria-label="Directions to 2600 W Victory Blvd, Burbank, CA 91505 (opens Google Maps)">
+          <img className="visit-truck" src="/images/otb-food-truck.png" alt="" loading="lazy" decoding="async" width={1390} height={1017} />
+          <span className="map-road road-one" aria-hidden="true">W Victory Blvd</span>
+          <span className="map-road road-two" aria-hidden="true">Burbank, CA</span>
+          <span className="map-road road-three" aria-hidden="true">91505</span>
+          <span className="map-road road-four" aria-hidden="true">N Buena Vista St</span>
+          <span className="map-pin" aria-hidden="true"><span>P/B</span></span>
+          <strong aria-hidden="true">2600 W<br />Victory Blvd.</strong>
+        </a>
       </section>
     </>
   );

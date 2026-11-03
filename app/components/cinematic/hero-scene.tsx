@@ -59,6 +59,15 @@ export default function HeroScene({ children }: { children: React.ReactNode }) {
         />
         <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true" />
         <div className="hero-shade" aria-hidden="true" />
+        {/* The brand's street-sign pole, planted on the bottom edge like it was on the original site. */}
+        <img
+          className="hero-sign"
+          src="/images/otb-street-sign.png"
+          alt="Philly on the Block street sign in Burbank, CA"
+          width={904}
+          height={1157}
+          decoding="async"
+        />
       </div>
       <div className="hero-copy">{children}</div>
       <a className="scroll-cue" href="#bite" aria-label="Scroll to the ingredients">

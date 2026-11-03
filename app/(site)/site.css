@@ -2439,3 +2439,102 @@ body:has(main > .hero) .site-header:not(.is-scrolled):not(.is-menu-open) {
 
 .page-hero > .status-pill { justify-self: start; }
 .story-open-copy .display-hero { font-size: clamp(3.6rem, 9.5vw, 9.6rem); max-width: 8.5em; }
+
+/* ───────── Hero street sign + bottom map (restored from the original site) ───────── */
+
+.hero-sign {
+  position: absolute;
+  right: clamp(12px, 5vw, 96px);
+  /* Pole base sits at ~97% of the art's height; plant it on the bottom edge. */
+  bottom: calc(min(74svh, 760px) * -0.03);
+  z-index: 2;
+  width: auto;
+  height: min(74svh, 760px);
+  max-width: none;
+  transform-origin: 50% 97%;
+  filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.55));
+  animation: sign-in 1.4s var(--ease-out) 0.6s both, sign-sway 9s ease-in-out 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes sign-in {
+  from { opacity: 0; transform: translateY(40px) rotate(3deg); }
+}
+
+@keyframes sign-sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-1.4deg); }
+}
+
+.visit-strip { align-items: stretch; }
+.visit-strip .hours-list { margin-bottom: 28px; }
+
+.visit-strip .map-card {
+  display: block;
+  min-height: clamp(420px, 46vw, 620px);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 12px 12px 0 var(--ink);
+  transition: transform 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out);
+}
+
+.visit-strip .map-card:hover,
+.visit-strip .map-card:focus-visible {
+  transform: translate(-4px, -4px);
+  box-shadow: 16px 16px 0 var(--ink);
+  outline: none;
+}
+
+.visit-strip .map-card > strong { font-family: var(--font-display); font-weight: 400; }
+.visit-strip .map-pin span { font-family: var(--font-display); }
+
+@media (max-width: 900px) {
+  .visit-strip { grid-template-columns: minmax(0, 1fr); }
+  .visit-strip .map-card { min-height: 380px; box-shadow: 8px 8px 0 var(--ink); }
+  /* Phones: smaller sign standing behind the copy, top-right. */
+  .hero-sign {
+    right: -6vw;
+    top: calc(var(--header-h) + 8px);
+    bottom: auto;
+    height: 40svh;
+    opacity: 0.9;
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-sign { animation: none; }
+}
+.hero-copy { z-index: 3; }
+
+/* Original site's illustrated map (copied from globals.css, scoped to the homepage). */
+.visit-strip .map-card { position: relative; min-height: 600px; overflow: hidden; background: var(--paper); color: var(--ink); }
+.visit-strip .map-card::before, .visit-strip .map-card::after { content: ""; position: absolute; background: var(--cream); border: 3px solid var(--ink); }
+.visit-strip .map-card::before { width: 140%; height: 55px; left: -20%; top: 42%; transform: rotate(-13deg); }
+.visit-strip .map-card::after { width: 55px; height: 130%; left: 54%; top: -15%; transform: rotate(9deg); }
+.visit-strip .map-road { position: absolute; z-index: 2; padding: 4px 8px; color: rgba(8,19,31,.56); background: var(--paper); font-family: ui-monospace, monospace; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.visit-strip .road-one { left: 15%; top: 48%; transform: rotate(-13deg); }
+.visit-strip .road-two { right: 8%; top: 58%; transform: rotate(-13deg); font-size: 14px; }
+.visit-strip .road-three { left: 59%; top: 15%; transform: rotate(9deg); }
+.visit-strip .road-four { left: 46%; top: 60%; transform: rotate(9deg); }
+.visit-strip .map-pin { position: absolute; z-index: 4; left: 46.5%; bottom: 8%; width: 104px; height: 104px; display: grid; place-items: center; border: 4px solid var(--ink); border-radius: 50% 50% 50% 0; background: var(--hot); transform: translate(-50%, -50%) rotate(-45deg); box-shadow: 8px 8px 0 rgba(24,23,19,.25); }
+.visit-strip .map-pin span { color: var(--cream); font-family: Impact, sans-serif; font-size: 28px; transform: rotate(45deg); }
+.visit-strip .map-card > strong { position: absolute; z-index: 4; right: 7%; bottom: 7%; font-family: Impact, sans-serif; font-size: clamp(2rem, 4vw, 4.5rem); line-height: .9; text-align: right; text-transform: uppercase; }
+.visit-strip .visit-truck { position: absolute; z-index: 3; left: 2%; bottom: 4%; width: 44%; height: auto; filter: drop-shadow(8px 10px 0 rgba(8,19,31,.14)); }
+
+.visit-strip .map-card > strong { font-family: var(--font-display); font-weight: 400; }
+.visit-strip .map-pin span { font-family: var(--font-display); }
+.visit-strip .map-card { border-radius: var(--radius); }
+@media (max-width: 900px) {
+  .visit-strip .map-pin { width: 76px; height: 76px; }
+  .visit-strip .map-pin span { font-size: 20px; }
+  .visit-strip .visit-truck { width: 58%; }
+}
+.visit-strip .map-card { min-height: clamp(420px, 46vw, 620px); }
+@media (max-width: 900px) { .visit-strip .map-card { min-height: 380px; } }
+@media (max-width: 560px) {
+  .visit-strip .map-card { min-height: 480px; }
+  .visit-strip .map-card > strong { font-size: 1.9rem; bottom: 5%; }
+  .visit-strip .map-pin { bottom: 22%; }
+}
