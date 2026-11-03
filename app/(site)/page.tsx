@@ -12,6 +12,11 @@ const DIRECTIONS = "https://www.google.com/maps/dir/?api=1&destination=2600+W+Vi
 
 export default async function Home() {
   const { menu, hours } = await getStorefront();
+  // "Today's move" ticket in the hero: the house favorite, priced from the live menu.
+  const featured = menu.find((item) => item.name === "Philly OTB") ?? menu.find((item) => item.badge) ?? menu[0];
+  const feature = featured
+    ? { name: featured.name, price: featured.price, description: "Sharp white American · OTB Ranch + Tang" }
+    : null;
 
   return (
     <>
@@ -19,7 +24,7 @@ export default async function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(menuSchema(menu))} />
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(faqSchema())} />
 
-      <HeroScene>
+      <HeroScene feature={feature}>
         <p className="eyebrow hero-in" style={{ "--d": "0.5s" } as React.CSSProperties}>
           Philly on the Block · Burbank, CA
         </p>

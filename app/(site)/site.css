@@ -2425,7 +2425,7 @@ body:has(main > .hero) .site-header:not(.is-scrolled):not(.is-menu-open) {
   .timeline li:first-child,
   .timeline li:last-child { grid-template-columns: auto 1fr; justify-items: start; align-items: center; text-align: left; }
   .order-row-head strong { font-size: 1.35rem; }
-  .hero-meta { padding-bottom: 72px; }
+  .hero-meta { padding-bottom: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2440,31 +2440,7 @@ body:has(main > .hero) .site-header:not(.is-scrolled):not(.is-menu-open) {
 .page-hero > .status-pill { justify-self: start; }
 .story-open-copy .display-hero { font-size: clamp(3.6rem, 9.5vw, 9.6rem); max-width: 8.5em; }
 
-/* ───────── Hero street sign + bottom map (restored from the original site) ───────── */
-
-.hero-sign {
-  position: absolute;
-  right: clamp(12px, 5vw, 96px);
-  /* Pole base sits at ~97% of the art's height; plant it on the bottom edge. */
-  bottom: calc(min(74svh, 760px) * -0.03);
-  z-index: 2;
-  width: auto;
-  height: min(74svh, 760px);
-  max-width: none;
-  transform-origin: 50% 97%;
-  filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.55));
-  animation: sign-in 1.4s var(--ease-out) 0.6s both, sign-sway 9s ease-in-out 2s infinite;
-  pointer-events: none;
-}
-
-@keyframes sign-in {
-  from { opacity: 0; transform: translateY(40px) rotate(3deg); }
-}
-
-@keyframes sign-sway {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-1.4deg); }
-}
+/* ───────── Bottom map (restored from the original site) ───────── */
 
 .visit-strip { align-items: stretch; }
 .visit-strip .hours-list { margin-bottom: 28px; }
@@ -2491,21 +2467,8 @@ body:has(main > .hero) .site-header:not(.is-scrolled):not(.is-menu-open) {
 @media (max-width: 900px) {
   .visit-strip { grid-template-columns: minmax(0, 1fr); }
   .visit-strip .map-card { min-height: 380px; box-shadow: 8px 8px 0 var(--ink); }
-  /* Phones: smaller sign standing behind the copy, top-right. */
-  .hero-sign {
-    right: -6vw;
-    top: calc(var(--header-h) + 8px);
-    bottom: auto;
-    height: 40svh;
-    opacity: 0.9;
-    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
-    mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
-  }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hero-sign { animation: none; }
-}
 .hero-copy { z-index: 3; }
 
 /* Original site's illustrated map (copied from globals.css, scoped to the homepage). */
@@ -2537,4 +2500,116 @@ body:has(main > .hero) .site-header:not(.is-scrolled):not(.is-menu-open) {
   .visit-strip .map-card { min-height: 480px; }
   .visit-strip .map-card > strong { font-size: 1.9rem; bottom: 5%; }
   .visit-strip .map-pin { bottom: 22%; }
+}
+
+/* ───────── Hero street scene (restored from the original site) ─────────
+   Same art and proportions as the old hero: crosswalk on the ground, the
+   truck parked behind on the left, the sign pole standing behind, and both
+   Philly boys side by side in front. */
+
+.hero-street {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: min(48vw, 820px);
+  aspect-ratio: 1.12;
+  max-height: calc(100% - var(--header-h));
+  pointer-events: none;
+}
+
+.hero-street img {
+  position: absolute;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+}
+
+.street-crosswalk {
+  z-index: 1; left: -12%; bottom: -1%; width: 124%; filter: brightness(0.92);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%), linear-gradient(0deg, #000 70%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%);
+}
+.street-sign {
+  z-index: 1;
+  left: 20%;
+  top: 6%;
+  width: 46%;
+  transform-origin: 50% 97%;
+  filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.5));
+  animation: street-sway 9s ease-in-out 2s infinite;
+}
+.street-truck { z-index: 2; left: -1%; bottom: 15%; width: 35%; filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45)); }
+.street-mascot { z-index: 3; bottom: -4%; width: 34%; filter: drop-shadow(10px 13px 0 rgba(8, 19, 31, 0.28)); }
+.street-mascot-left { left: 30%; }
+.street-mascot-right { left: 62%; }
+
+/* Staggered entrance: ground, truck, sign, then the boys step in. */
+.hero-street img { animation-fill-mode: both; }
+.street-crosswalk { animation: street-rise 1.1s var(--ease-out) 0.3s both; }
+.street-truck { animation: street-drive 1.4s var(--ease-out) 0.6s both; }
+.street-sign { animation: street-rise 1.2s var(--ease-out) 0.8s both, street-sway 9s ease-in-out 2.2s infinite; }
+.street-mascot-left { animation: street-step 1.1s var(--ease-out) 1s both; }
+.street-mascot-right { animation: street-step 1.1s var(--ease-out) 1.15s both; }
+
+@keyframes street-rise { from { opacity: 0; transform: translateY(40px); } }
+@keyframes street-drive { from { opacity: 0; transform: translateX(-60px); } }
+@keyframes street-step { from { opacity: 0; transform: translateY(60px) scale(0.96); } }
+@keyframes street-sway { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-1.2deg); } }
+
+.street-ticket {
+  position: absolute;
+  z-index: 4;
+  right: 4%;
+  bottom: 9%;
+  display: flex;
+  flex-direction: column;
+  min-width: 290px;
+  padding: 16px 20px;
+  color: var(--ink);
+  background: var(--cream);
+  box-shadow: 8px 8px 0 var(--green);
+  transform: rotate(-1.5deg);
+  animation: street-rise 1s var(--ease-out) 1.4s both;
+}
+
+.street-ticket span { font-size: 9px; font-weight: 900; letter-spacing: 0.17em; text-transform: uppercase; }
+.street-ticket strong { margin: 4px 0; font-family: var(--font-display); font-size: 26px; font-weight: 400; text-transform: uppercase; }
+.street-ticket small { color: rgba(8, 19, 31, 0.65); font-size: 11px; font-weight: 600; }
+
+/* Darken the photo behind the scene so the illustration reads cleanly. */
+.hero .hero-shade { background: linear-gradient(90deg, rgba(8, 19, 31, 0.92) 0%, rgba(8, 19, 31, 0.55) 45%, rgba(8, 19, 31, 0.7) 100%); }
+
+@media (max-width: 1100px) {
+  /* Tablets + phones: the scene stacks under the copy as its own block, like the old site. */
+  .hero { display: flex; flex-direction: column; justify-content: flex-end; }
+  .hero-copy { z-index: 3; }
+  .hero-street {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    align-self: center;
+    width: min(100%, 720px);
+    max-height: none;
+    margin-top: 36px;
+    margin-bottom: calc(-1 * clamp(48px, 8vh, 96px));
+  }
+  .hero-copy { order: 1; }
+  .hero-street { order: 2; }
+  .street-crosswalk {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+  }
+  .street-ticket { right: 2%; bottom: 4%; min-width: 0; padding: 12px 14px; }
+  .street-ticket strong { font-size: 20px; }
+}
+
+@media (max-width: 560px) {
+  .hero-street { width: calc(100% + 2 * var(--gutter)); margin-inline: calc(-1 * var(--gutter)); }
+  .street-ticket { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-street img,
+  .street-ticket { animation: none !important; }
 }
