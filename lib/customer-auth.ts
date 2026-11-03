@@ -130,3 +130,15 @@ export function customerCookieHeader(token: string, secure: boolean): string {
 export function clearCustomerCookieHeader(secure: boolean): string {
   return `${CUSTOMER_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; ${secure ? "Secure; " : ""}Max-Age=0`;
 }
+
+// Readable, secret-free companion cookie: only tells the page "show Account,
+// not Log in". Authorization always uses the HttpOnly session above.
+const HINT_COOKIE = "otb_has_account";
+
+export function accountHintCookieHeader(secure: boolean): string {
+  return `${HINT_COOKIE}=1; Path=/; SameSite=Lax; ${secure ? "Secure; " : ""}Max-Age=${Math.floor(CUSTOMER_SESSION_TTL_MS / 1000)}`;
+}
+
+export function clearAccountHintCookieHeader(secure: boolean): string {
+  return `${HINT_COOKIE}=; Path=/; SameSite=Lax; ${secure ? "Secure; " : ""}Max-Age=0`;
+}

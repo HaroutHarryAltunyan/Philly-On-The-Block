@@ -2,140 +2,118 @@
 
 import { useEffect, useState } from "react";
 import InstallAppButton from "./install-app-button";
-import { BusinessStatus, getBusinessStatus, HourSchedule } from "../../lib/hours";
+import { useShop } from "./shop/shop-context";
 
-const NAV_LINKS = [
-  { href: "/#menu", label: "Menu" },
-  { href: "/#story", label: "Our story" },
-  { href: "/reserve", label: "Events" },
+export const NAV_LINKS = [
+  { href: "/menu", label: "Menu" },
+  { href: "/our-story", label: "Our story" },
+  { href: "/events", label: "Events" },
+  { href: "/visit", label: "Visit" },
   { href: "/track", label: "Track order" },
-  { href: "/portal", label: "Rewards" },
-  { href: "/#visit", label: "Visit" },
+  { href: "/rewards", label: "Rewards" },
 ];
 
-const DEFAULT_STATUS: BusinessStatus = { open: false, label: "View today’s hours" };
-
-type SiteHeaderProps = {
-  onCartOpen?: () => void;
-  itemCount?: number;
-  businessStatus?: BusinessStatus | null;
-};
-
-export default function SiteHeader({ onCartOpen, itemCount = 0, businessStatus = null }: SiteHeaderProps) {
+export default function SiteHeader({ pathname = "" }: { pathname?: string }) {
+  const { status, itemCount, openBag, signedIn, lastAdded } = useShop();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [fetchedStatus, setFetchedStatus] = useState<BusinessStatus | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [current, setCurrent] = useState(pathname);
+  const [bump, setBump] = useState(false);
 
   useEffect(() => {
-    if (businessStatus) return;
-    let cancelled = false;
-
-    const load = () =>
-      fetch("/api/hours")
-        .then(async (response) => {
-          if (!response.ok) return null;
-          return (await response.json()) as { weeklyHours?: Record<string, [string, string]> };
-        })
-        .then((data) => {
-          if (cancelled || !data?.weeklyHours) return;
-          const converted: Record<string, HourSchedule> = {};
-          for (const day of Object.keys(data.weeklyHours)) {
-            const [open, close] = data.weeklyHours[day];
-            if (open === "closed" || close === "closed") {
-              converted[day] = null;
-            } else {
-              const toMinutes = (value: string) => {
-                const [h, m] = value.split(":").map(Number);
-                return h * 60 + m;
-              };
-              converted[day] = [toMinutes(open), toMinutes(close)];
-            }
-          }
-          setFetchedStatus(getBusinessStatus(converted));
-        })
-        .catch(() => undefined);
-
-    load();
-    const timer = window.setInterval(load, 60_000);
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    const timer = window.setTimeout(() => setCurrent(window.location.pathname), 0);
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
     };
-  }, [businessStatus]);
+  }, []);
+
+  useEffect(() => {
+    if (!lastAdded) return;
+    const on = window.setTimeout(() => setBump(true), 0);
+    const off = window.setTimeout(() => setBump(false), 650);
+    return () => {
+      window.clearTimeout(on);
+      window.clearTimeout(off);
+    };
+  }, [lastAdded]);
 
   useEffect(() => {
     if (!menuOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
-    };
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setMenuOpen(false);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.documentElement.style.overflow = "";
+    };
   }, [menuOpen]);
 
-  const status = businessStatus ?? fetchedStatus ?? DEFAULT_STATUS;
+  const accountHref = signedIn ? "/account" : "/login";
+  const accountLabel = signedIn ? "Account" : "Log in";
 
   return (
-    <header className="site-header">
-      <a className="brand" href="/" aria-label="Philly on the Block home">
-        <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" />
-      </a>
-
-      <nav className="desktop-nav" aria-label="Main navigation">
-        {NAV_LINKS.map((link) => (
-          <a key={link.href} href={link.href}>
-            {link.label}
-          </a>
-        ))}
-      </nav>
-
-      <div className="header-actions">
-        <a className={`open-status ${status.open ? "" : "closed"}`} href="/#visit">
-          <i /> {status.label}
+    <>
+      <header className={`site-header${scrolled ? " is-scrolled" : ""}${menuOpen ? " is-menu-open" : ""}`}>
+        <a className="brand" href="/" aria-label="Philly on the Block home">
+          <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" width="168" height="58" />
         </a>
-        <a className="login-button" href="/portal">
-          Log in
-        </a>
-        {onCartOpen ? (
-          <button className="cart-button" type="button" onClick={onCartOpen}>
-            Bag <span>{itemCount}</span>
-          </button>
-        ) : (
-          <a className="cart-button" href="/?cart=1">
-            Bag <span>{itemCount}</span>
-          </a>
-        )}
-        <InstallAppButton />
-      </div>
 
-      <button
-        className={`burger ${menuOpen ? "is-open" : ""}`}
-        type="button"
-        aria-label={menuOpen ? "Close menu" : "Open menu"}
-        aria-expanded={menuOpen}
-        onClick={() => setMenuOpen((open) => !open)}
-      >
-        <span />
-        <span />
-        <span />
-      </button>
-
-      <div className={`mobile-menu ${menuOpen ? "is-open" : ""}`}>
-        <nav aria-label="Mobile navigation">
+        <nav className="primary-nav" aria-label="Main">
           {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>
+            <a key={link.href} href={link.href} aria-current={current.startsWith(link.href) ? "page" : undefined}>
               {link.label}
             </a>
           ))}
         </nav>
-        <div className="mobile-menu-footer">
-          <a className={`open-status ${status.open ? "" : "closed"}`} href="/#visit">
-            <i /> {status.label}
+
+        <div className="header-actions">
+          <a className={`status-pill${status.open ? " is-open" : ""}`} href="/visit">
+            <i aria-hidden="true" /> {status.label}
           </a>
-          <a className="login-button" href="/portal">
-            Log in
-          </a>
+          <a className="header-link" href={accountHref}>{accountLabel}</a>
+          <button className={`bag-button${bump ? " is-bumped" : ""}`} type="button" onClick={openBag} aria-label={`Open bag, ${itemCount} ${itemCount === 1 ? "item" : "items"}`}>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 8h14l-1.2 12H6.2L5 8Zm3.5 0V6.5a3.5 3.5 0 0 1 7 0V8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
+            <span>Bag</span>
+            <b>{itemCount}</b>
+          </button>
+          <button
+            className="burger"
+            type="button"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span /><span />
+          </button>
+        </div>
+      </header>
+
+      <div id="mobile-menu" className={`mobile-menu${menuOpen ? " is-open" : ""}`} inert={!menuOpen} aria-hidden={!menuOpen}>
+        <nav aria-label="Mobile">
+          {[{ href: "/", label: "Home" }, ...NAV_LINKS].map((link, index) => (
+            <a key={link.href} href={link.href} style={{ transitionDelay: `${menuOpen ? 60 + index * 40 : 0}ms` }} onClick={() => setMenuOpen(false)}>
+              {link.label}
+            </a>
+          ))}
+        </nav>
+        <div className="mobile-menu-foot">
+          <a className={`status-pill${status.open ? " is-open" : ""}`} href="/visit"><i aria-hidden="true" /> {status.label}</a>
+          <a className="btn btn-light" href={accountHref}>{accountLabel}</a>
           <InstallAppButton />
         </div>
       </div>
-    </header>
+
+      <div className="order-dock">
+        <a className="btn btn-primary btn-block" href="/menu">Order now</a>
+        <button className="btn btn-dark" type="button" onClick={openBag} aria-label={`Open bag, ${itemCount} ${itemCount === 1 ? "item" : "items"}`}>
+          Bag · {itemCount}
+        </button>
+      </div>
+    </>
   );
 }

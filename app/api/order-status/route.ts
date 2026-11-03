@@ -117,7 +117,24 @@ export async function GET(request: Request) {
       .orderBy(desc(orders.createdAt), desc(orders.id))
       .limit(10);
 
-    return Response.json({ orders: recent.map(toOrderJson) });
+    // Phone-only lookups are a list for picking which order to open, and a
+    // phone number isn't a secret. Leave out what identifies or locates the
+    // customer, plus the proof-of-delivery PIN; opening one order (number +
+    // phone) returns the full detail. Fields stay present (empty) so existing
+    // clients' types still line up.
+    return Response.json({
+      orders: recent.map((row) => ({
+        ...toOrderJson(row),
+        name: "",
+        phone: "",
+        destLat: "",
+        destLng: "",
+        driverLat: "",
+        driverLng: "",
+        driverUpdatedAt: null,
+        deliveryPin: "",
+      })),
+    });
   } catch (error) {
     return toErrorResponse(error);
   }

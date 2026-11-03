@@ -3,13 +3,18 @@ import { getDb } from "../../../../db";
 import { customers, orders } from "../../../../db/schema";
 import { toErrorResponse } from "../../../../lib/admin-routes";
 import { crossOriginResponse, isCrossOrigin } from "../../../../lib/csrf";
-import { customerFromRequest } from "../../../../lib/customer-auth";
+import { clearAccountHintCookieHeader, customerFromRequest } from "../../../../lib/customer-auth";
+import { requestIsSecure } from "../../../../lib/admin-auth";
 import { getCustomerPoints, normalizePhone, pointsToCents } from "../../../../lib/points";
 
 const NAME_RE = /^[\p{L}\p{M}0-9 .,'’-]{0,60}$/u;
 
-function unauthorized() {
-  return Response.json({ error: "Sign in to see your account." }, { status: 401 });
+function unauthorized(request: Request) {
+  // Also drop a stale "has account" hint so the header goes back to "Log in".
+  return Response.json(
+    { error: "Sign in to see your account." },
+    { status: 401, headers: { "Set-Cookie": clearAccountHintCookieHeader(requestIsSecure(request)) } },
+  );
 }
 
 type StoredLine = { name?: string; quantity?: number; options?: string[] };
@@ -18,7 +23,7 @@ export async function GET(request: Request) {
   try {
     const db = getDb();
     const customer = await customerFromRequest(db, request);
-    if (!customer) return unauthorized();
+    if (!customer) return unauthorized(request);
 
     // Orders placed while signed in, plus earlier guest orders that used this
     // account's (verified) email. Delivery addresses and notes are left out.
@@ -87,7 +92,7 @@ export async function PATCH(request: Request) {
     if (isCrossOrigin(request)) return crossOriginResponse();
     const db = getDb();
     const customer = await customerFromRequest(db, request);
-    if (!customer) return unauthorized();
+    if (!customer) return unauthorized(request);
 
     const payload = (await request.json().catch(() => ({}))) as { name?: unknown; phone?: unknown };
     const name = typeof payload.name === "string" ? payload.name.trim() : customer.name;

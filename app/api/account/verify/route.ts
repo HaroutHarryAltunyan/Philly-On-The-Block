@@ -3,7 +3,7 @@ import { ensureBootstrap } from "../../../../db/bootstrap";
 import { requestIsSecure, wantsNativeToken } from "../../../../lib/admin-auth";
 import { toErrorResponse } from "../../../../lib/admin-routes";
 import { crossOriginResponse, isCrossOrigin } from "../../../../lib/csrf";
-import { consumeLoginToken, createCustomerSession, customerCookieHeader } from "../../../../lib/customer-auth";
+import { accountHintCookieHeader, consumeLoginToken, createCustomerSession, customerCookieHeader } from "../../../../lib/customer-auth";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../../../../lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -28,10 +28,10 @@ export async function POST(request: Request) {
     }
 
     const session = await createCustomerSession(db, customer);
-    return Response.json(
-      { authenticated: true, ...(wantsNativeToken(request) ? { token: session } : {}) },
-      { headers: { "Set-Cookie": customerCookieHeader(session, requestIsSecure(request)) } },
-    );
+    const headers = new Headers();
+    headers.append("Set-Cookie", customerCookieHeader(session, requestIsSecure(request)));
+    headers.append("Set-Cookie", accountHintCookieHeader(requestIsSecure(request)));
+    return Response.json({ authenticated: true, ...(wantsNativeToken(request) ? { token: session } : {}) }, { headers });
   } catch (error) {
     return toErrorResponse(error);
   }

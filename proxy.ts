@@ -23,6 +23,18 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Referrer-Policy": "no-referrer",
 };
 
+// Old and alternate customer URLs. Permanent, so search engines move their
+// ranking to the new pages; query strings carry over.
+const REDIRECTS: Record<string, string> = {
+  "/portal": "/rewards",
+  "/reserve": "/events",
+  "/signup": "/login",
+  "/track-order": "/track",
+  "/account/orders": "/account#orders",
+  "/account/rewards": "/account#rewards",
+  "/our_story": "/our-story",
+};
+
 function withSecurityHeaders(response: NextResponse): NextResponse {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(name, value);
@@ -41,6 +53,13 @@ export default function proxy(request: NextRequest) {
     target.port = "";
     target.protocol = "https:";
     return withSecurityHeaders(NextResponse.redirect(target, 301));
+  }
+
+  const redirectTo = REDIRECTS[pathname.replace(/\/+$/, "") || "/"];
+  if (redirectTo) {
+    const target = new URL(redirectTo, request.url);
+    if (!redirectTo.includes("#")) target.search = request.nextUrl.search;
+    return withSecurityHeaders(NextResponse.redirect(target, 308));
   }
 
   if (ADMIN_HOSTS.has(host) && pathname === "/") {

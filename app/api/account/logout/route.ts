@@ -1,7 +1,7 @@
 import { getDb } from "../../../../db";
 import { requestIsSecure } from "../../../../lib/admin-auth";
 import { crossOriginResponse, isCrossOrigin } from "../../../../lib/csrf";
-import { clearCustomerCookieHeader, customerFromRequest, signOutEverywhere } from "../../../../lib/customer-auth";
+import { clearAccountHintCookieHeader, clearCustomerCookieHeader, customerFromRequest, signOutEverywhere } from "../../../../lib/customer-auth";
 
 // Signs the account out on every device (bumps its session version).
 export async function POST(request: Request) {
@@ -14,8 +14,8 @@ export async function POST(request: Request) {
     // Best-effort: the cookie is still cleared below.
     console.error("Customer sign-out failed", error);
   }
-  return Response.json(
-    { authenticated: false },
-    { headers: { "Set-Cookie": clearCustomerCookieHeader(requestIsSecure(request)) } },
-  );
+  const headers = new Headers();
+  headers.append("Set-Cookie", clearCustomerCookieHeader(requestIsSecure(request)));
+  headers.append("Set-Cookie", clearAccountHintCookieHeader(requestIsSecure(request)));
+  return Response.json({ authenticated: false }, { headers });
 }

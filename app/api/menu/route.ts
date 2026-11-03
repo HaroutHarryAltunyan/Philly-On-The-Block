@@ -4,6 +4,7 @@ import { ensureBootstrap } from "../../../db/bootstrap";
 import { menuItems } from "../../../db/schema";
 import { toErrorResponse } from "../../../lib/admin-routes";
 import { attachMenuOptions } from "../../../lib/menu-items";
+import { toStoreMenuItem } from "../../../lib/storefront";
 
 export async function GET() {
   try {
@@ -18,21 +19,8 @@ export async function GET() {
 
     const items = await attachMenuOptions(db, rows);
 
-    return Response.json({
-      menu: items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        description: item.description,
-        price: item.priceCents / 100,
-        badge: item.badge,
-        image: item.image,
-        imagePosition: item.imagePosition || undefined,
-        photo: item.image.includes("/images/menu/") || item.image.includes("/api/menu-image/"),
-        stock: item.stock === null ? null : Math.max(item.stock, 0),
-        options: item.options,
-      })),
-    });
+    // badge stays a string ("" when unset) for existing API clients.
+    return Response.json({ menu: items.map((item) => ({ ...toStoreMenuItem(item), badge: item.badge })) });
   } catch (error) {
     return toErrorResponse(error);
   }

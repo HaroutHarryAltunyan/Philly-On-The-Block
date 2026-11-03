@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SITE_NAME, SITE_URL } from "../../lib/site";
+import { SITE_NAME, SITE_URL } from "../../../lib/site";
 
 export const metadata: Metadata = {
   title: { absolute: `Track Your Order | ${SITE_NAME} Burbank` },
@@ -8,9 +8,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/track" },
   openGraph: {
     title: `Track Your Order | ${SITE_NAME} Burbank`,
-    description:
-      "Track your Philly on the Block order in real time — Burbank cheesesteak pickup or delivery with live driver location.",
+    description: "Track your Philly on the Block order in real time — Burbank cheesesteak pickup or delivery with live driver location.",
     url: `${SITE_URL}/track`,
     type: "website",
   },
 };
+
+export default function TrackLayout({ children }: { children: React.ReactNode }) {
+  return children;
+}
