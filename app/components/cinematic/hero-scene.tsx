@@ -21,6 +21,8 @@ export default function HeroScene({ children, feature }: { children: React.React
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || prefersReducedMotion() || saveData() || !supportsWebGL()) return;
+    // The original-palette hero hides the photo stage; don't spend GPU on it.
+    if (canvas.parentElement && getComputedStyle(canvas.parentElement).display === "none") return;
     let handle: { dispose: () => void } | null = null;
     let cancelled = false;
     const cancelIdle = whenIdle(() => {

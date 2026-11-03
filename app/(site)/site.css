@@ -2613,3 +2613,134 @@ body:has(main > .hero) .site-header:not(.is-scrolled):not(.is-menu-open) {
   .hero-street img,
   .street-ticket { animation: none !important; }
 }
+
+/* Story teaser: both Philly boys back to back. */
+.story-duo {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  width: min(100%, 560px);
+  margin-inline: auto;
+}
+
+.story-teaser-art.story-duo img {
+  width: 54%;
+  margin: 0;
+  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55));
+}
+
+/* Overlap so their backs meet in the middle. */
+.story-duo .duo-left { position: relative; z-index: 1; margin-right: -21%; }
+.story-duo .duo-right { position: relative; z-index: 2; margin-left: -21%; transform: translateY(1.5%); }
+
+@media (max-width: 900px) {
+  .story-teaser-art.story-duo { width: min(100%, 420px); }
+  .story-teaser-art.story-duo img { width: 54%; }
+}
+
+/* ═════════════════ Original palette ═════════════════
+   The original site's seven colors, used the way it used them: sky-blue
+   page and hero, ink text, green accents and story band, mustard ticker,
+   cream cards and footer, ink cart and visit band. The redesign's extra
+   shades fold back into those. */
+
+:root {
+  --ink-2: var(--ink);
+  --ink-3: var(--ink);
+  --green-deep: var(--green);
+  --green-glow: var(--green);
+  --mustard-deep: var(--mustard);
+  --steel: rgba(8, 19, 31, 0.6);
+}
+
+body { background: var(--paper); color: var(--ink); }
+
+/* Header: solid green everywhere, like the original. */
+body:has(main > .hero) .site-header:not(.is-scrolled):not(.is-menu-open) { background: rgba(0, 116, 4, 0.96); }
+
+/* Hero: sky blue with the illustrated street scene; ink + green type. */
+.hero { background: linear-gradient(145deg, var(--paper-deep), var(--paper)); color: var(--ink); }
+.hero .hero-stage { display: none; }
+.hero .eyebrow { color: var(--green); }
+.hero .display-hero { color: var(--ink); }
+.hero .hero-line { color: var(--ink); text-shadow: none; }
+.hero .hero-line-accent { color: var(--green); text-shadow: none; }
+.hero-sub { color: rgba(8, 19, 31, 0.72); }
+.hero-meta { color: rgba(8, 19, 31, 0.7); }
+.hero .status-pill { border-color: var(--ink); color: var(--ink); }
+.hero .scroll-cue { border-color: var(--ink); color: var(--ink); }
+.hero .scroll-cue span { background: var(--ink); }
+.street-crosswalk { filter: none; }
+.street-ticket { box-shadow: 8px 8px 0 var(--green); }
+
+/* Menu cards: cream with ink type (the original .menu-card). */
+.dish { background: var(--cream); color: var(--ink); box-shadow: 0 30px 50px -40px rgba(8, 19, 31, 0.55); }
+.dish-name { color: var(--ink); }
+.dish-price { color: var(--green); }
+.dish-desc { color: rgba(8, 19, 31, 0.68); }
+.dish-cta { background: rgba(8, 19, 31, 0.06); color: var(--ink); }
+.dish-cta b { background: var(--ink); color: var(--mustard); }
+.dish:hover .dish-cta { background: var(--mustard); color: var(--ink); }
+
+/* Home bands. */
+.story-teaser .lede { color: rgba(255, 247, 226, 0.86); }
+.events-teaser .lede { color: rgba(8, 19, 31, 0.75); }
+.visit-strip .visit-address { color: var(--cream); }
+.visit-strip .hours-list { background: var(--cream); color: var(--ink); }
+.visit-strip .hours-list div { border-bottom-color: var(--line); }
+.visit-strip .hours-list .is-today dt,
+.visit-strip .hours-list .is-today dd { color: var(--green); }
+.visit-strip .map-card { border-color: var(--cream); box-shadow: 12px 12px 0 var(--green); }
+
+/* Footer: cream with ink type (the original footer). */
+.site-footer { background: var(--cream); color: var(--ink); }
+.footer-cols h2 { color: var(--green); }
+.footer-cols a { color: rgba(8, 19, 31, 0.82); }
+.footer-cols a:hover { color: var(--green); }
+.footer-status { color: var(--green); }
+.footer-social a { border-color: var(--line); color: var(--ink); }
+.footer-social a:hover { background: var(--ink); color: var(--cream); }
+.footer-wordmark { -webkit-text-stroke: 1.5px rgba(8, 19, 31, 0.22); }
+.footer-legal { border-top-color: var(--line); color: rgba(8, 19, 31, 0.6); }
+.footer-legal a:hover { color: var(--green); }
+.site-footer .inline-input-dark input { border-color: rgba(8, 19, 31, 0.25); background: #fff; color: var(--ink); }
+.site-footer .inline-input-dark input::placeholder { color: rgba(8, 19, 31, 0.45); }
+.site-footer .muted-light { color: rgba(8, 19, 31, 0.68); }
+
+/* Sub-page heroes: green instead of black. */
+.page-hero { background: var(--green); }
+.story-open { background: var(--green); }
+.story-open::after {
+  background:
+    radial-gradient(circle at 80% 10%, rgba(255, 208, 0, 0.18), transparent 50%),
+    linear-gradient(180deg, rgba(0, 116, 4, 0) 0%, rgba(0, 116, 4, 0.9) 80%);
+}
+.story-open-crosswalk { opacity: 0.45; filter: none; }
+.chapters { background: var(--paper); color: var(--ink); }
+.chapter-copy .eyebrow { color: var(--green); }
+.chapter-copy .lede { color: rgba(8, 19, 31, 0.75); }
+.chapter-media::after { background: none; }
+.rewards-hero,
+.account-hero { background: var(--green); }
+.reward-step { background: var(--cream); color: var(--ink); box-shadow: 0 30px 50px -40px rgba(8, 19, 31, 0.5); }
+.reward-step > span { color: var(--green); }
+.reward-step p { color: rgba(8, 19, 31, 0.72); }
+.reward-step::after { background: radial-gradient(circle, rgba(255, 208, 0, 0.35), transparent 70%); }
+.reward-card { background: var(--green); }
+.contact-card { background: var(--green); }
+.contact-card:hover,
+.contact-card:focus-visible { background: var(--ink); }
+.contact-card p { color: rgba(255, 247, 226, 0.8); }
+.visit-hero, .events-hero { background: var(--green); }
+
+/* Story teaser duo: keep both at full size so the overlap holds. */
+.story-teaser-art.story-duo img { flex: none; }
+.hero::before {
+  background:
+    radial-gradient(55% 60% at 78% 35%, rgba(255, 247, 226, 0.45), transparent 65%),
+    linear-gradient(145deg, var(--paper-deep), var(--paper));
+}
+.story-open::after { z-index: -2; }
+.story-open-crosswalk { opacity: 0.22; }
+.story-teaser-art.story-duo .duo-left { margin-right: -4%; }
+.story-teaser-art.story-duo .duo-right { margin-left: -4%; }

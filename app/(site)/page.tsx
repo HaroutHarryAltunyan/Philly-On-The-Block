@@ -40,7 +40,7 @@ export default async function Home() {
           <MagneticLink className="btn btn-primary btn-lg" href="/menu">
             Order now <span aria-hidden="true">→</span>
           </MagneticLink>
-          <a className="btn btn-glass btn-lg" href="#menu">Explore the menu</a>
+          <a className="btn btn-ghost-dark btn-lg" href="#menu">Explore the menu</a>
         </div>
         <div className="hero-meta hero-in" style={{ "--d": "1.35s" } as React.CSSProperties}>
           <OpenStatus />
@@ -76,9 +76,11 @@ export default async function Home() {
         <MenuGrid />
       </section>
 
-      <section className="section section-ink story-teaser" aria-labelledby="story-title">
-        <div className="story-teaser-art" aria-hidden="true">
-          <img src="/images/otb-mascot-right.png" alt="" loading="lazy" decoding="async" width={1005} height={1329} />
+      <section className="section section-green story-teaser" aria-labelledby="story-title">
+        {/* Both Philly boys back to back, like the logo. */}
+        <div className="story-teaser-art story-duo" aria-hidden="true">
+          <img className="duo-left" src="/images/otb-mascot-left.png" alt="" loading="lazy" decoding="async" width={1056} height={1400} />
+          <img className="duo-right" src="/images/otb-mascot-right.png" alt="" loading="lazy" decoding="async" width={1005} height={1329} />
         </div>
         <div className="story-teaser-copy">
           <p className="eyebrow">Our story</p>
@@ -93,13 +95,13 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="section section-green events-teaser" aria-labelledby="events-title">
+      <section className="section section-blue events-teaser" aria-labelledby="events-title">
         <div>
           <p className="eyebrow">Events &amp; catering</p>
           <RevealWords id="events-title" className="display-xl" text="Bring the block to your event." />
           <Reveal>
             <p className="lede">Cheesesteaks for the whole crew — private parties, office lunches, birthdays, and film and studio sets.</p>
-            <a className="btn btn-cream" href="/events">Request a date</a>
+            <a className="btn btn-dark" href="/events">Request a date</a>
           </Reveal>
         </div>
         <img className="events-teaser-truck" src="/images/otb-food-truck.png" alt="The Philly on the Block food truck" loading="lazy" decoding="async" width={1390} height={1017} />
@@ -128,7 +130,7 @@ export default async function Home() {
           ))}
         </div>
       </section>
-      <section className="section section-blue visit-strip" id="visit" aria-labelledby="visit-title">
+      <section className="section section-ink visit-strip" id="visit" aria-labelledby="visit-title">
         <div>
           <p className="eyebrow">Find the block</p>
           <RevealWords id="visit-title" className="display-xl" text="Pull up hungry." />
@@ -138,8 +140,8 @@ export default async function Home() {
           </address>
           <HoursList />
           <div className="stack-actions visit-actions-row">
-            <a className="btn btn-dark" href={DIRECTIONS} target="_blank" rel="noopener noreferrer">Get directions ↗</a>
-            <a className="btn btn-ghost-dark" href="/visit">Map &amp; details</a>
+            <a className="btn btn-primary" href={DIRECTIONS} target="_blank" rel="noopener noreferrer">Get directions ↗</a>
+            <a className="btn btn-ghost" href="/visit">Map &amp; details</a>
           </div>
         </div>
         {/* The original site's illustrated street map: Victory Blvd x Buena Vista, the truck, and the P/B pin. */}
