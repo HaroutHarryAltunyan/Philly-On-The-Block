@@ -58,7 +58,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="admin-brand">
-          <img src="/images/Philly_On_The_Block_Logo.png" alt="" />
+          <img src="/images/otb-logo-header.webp" alt="" />
           <div>
             <strong>Philly on the Block</strong>
             <small>Back of house</small>

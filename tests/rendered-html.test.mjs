@@ -43,7 +43,11 @@ test("homepage: brand, local SEO facts, real menu, ordering entry points", async
   assert.match(page, /OTB Ranch/);
   assert.match(page, /OTB Tang/);
   assert.match(page, /Built on<\/span>\s*<span[^>]*>the block\./);
-  assert.match(page, /\/images\/Philly_On_The_Block_Logo\.png/);
+  // Header uses the small WebP logo (the 1.7 MB PNG was the mobile LCP element);
+  // structured data points at a 512px PNG for Google.
+  assert.match(page, /<img[^>]+class="brand-logo"[^>]+src="\/images\/otb-logo-header\.webp"/);
+  assert.match(page, /"logo":"https:\/\/phillyontheblock\.com\/images\/philly-otb-logo-512\.png"/);
+  assert.doesNotMatch(page, /src="\/images\/[^"]+\.png"/, "page art should be served as WebP");
   assert.match(page, /\/manifest\.webmanifest/);
   // The hero poster is a real product photo and is the LCP element.
   assert.match(page, /<img[^>]+class="hero-poster"[^>]+src="\/images\/menu\/philly-otb\.jpg"/);

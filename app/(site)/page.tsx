@@ -83,8 +83,8 @@ export default async function Home() {
       <section className="section section-green story-teaser" aria-labelledby="story-title">
         {/* Both Philly boys back to back, like the logo. */}
         <div className="story-teaser-art story-duo" aria-hidden="true">
-          <img className="duo-left" src="/images/otb-mascot-left.png" alt="" loading="lazy" decoding="async" width={1056} height={1400} />
-          <img className="duo-right" src="/images/otb-mascot-right.png" alt="" loading="lazy" decoding="async" width={1005} height={1329} />
+          <img className="duo-left" src="/images/otb-mascot-left.webp" alt="" loading="lazy" decoding="async" width={1056} height={1400} />
+          <img className="duo-right" src="/images/otb-mascot-right.webp" alt="" loading="lazy" decoding="async" width={1005} height={1329} />
         </div>
         <div className="story-teaser-copy">
           <p className="eyebrow">Our story</p>
@@ -108,7 +108,7 @@ export default async function Home() {
             <a className="btn btn-dark" href="/events">Request a date</a>
           </Reveal>
         </div>
-        <img className="events-teaser-truck" src="/images/otb-food-truck.png" alt="The Philly on the Block food truck" loading="lazy" decoding="async" width={1390} height={1017} />
+        <img className="events-teaser-truck" src="/images/otb-food-truck.webp" alt="The Philly on the Block food truck" loading="lazy" decoding="async" width={1390} height={1017} />
       </section>
 
       <section className="section section-cream faq" aria-labelledby="faq-title">
@@ -150,7 +150,7 @@ export default async function Home() {
         </div>
         {/* The original site's illustrated street map: Victory Blvd x Buena Vista, the truck, and the P/B pin. */}
         <a className="map-card" href={DIRECTIONS} target="_blank" rel="noopener noreferrer" aria-label="Directions to 2600 W Victory Blvd, Burbank, CA 91505 (opens Google Maps)">
-          <img className="visit-truck" src="/images/otb-food-truck.png" alt="" loading="lazy" decoding="async" width={1390} height={1017} />
+          <img className="visit-truck" src="/images/otb-food-truck.webp" alt="" loading="lazy" decoding="async" width={1390} height={1017} />
           <span className="map-road road-one" aria-hidden="true">W Victory Blvd</span>
           <span className="map-road road-two" aria-hidden="true">Burbank, CA</span>
           <span className="map-road road-three" aria-hidden="true">91505</span>

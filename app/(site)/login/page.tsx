@@ -13,7 +13,7 @@ export default function LoginPage() {
   return (
     <section className="auth-shell">
       <div className="auth-art" aria-hidden="true">
-        <img src="/images/otb-mascot-left.png" alt="" width={1056} height={1400} />
+        <img src="/images/otb-mascot-left.webp" alt="" width={1056} height={1400} />
       </div>
       <div className="auth-card panel">
         <p className="eyebrow">Your account</p>

@@ -74,7 +74,7 @@ export default function LiveMap({ markers, height = "400px", className = "" }: L
       const icon = isStore
         ? L.divIcon({
             className: "otb-map-marker",
-            html: `<img src="/images/otb-food-truck.png" alt="" style="width:48px;height:36px;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(0,0,0,.45));" />`,
+            html: `<img src="/images/otb-food-truck.webp" alt="" style="width:48px;height:36px;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(0,0,0,.45));" />`,
             iconSize: [48, 36],
             iconAnchor: [24, 36],
           })

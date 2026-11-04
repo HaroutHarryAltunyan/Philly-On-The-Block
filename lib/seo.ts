@@ -68,7 +68,7 @@ export function restaurantSchema(hours: WeeklyHours) {
     description:
       "Hand-chopped Philly cheesesteaks, loaded OTB Fries, and cold Cokes at 2600 W Victory Blvd in Burbank, California. Pickup, delivery, and cheesesteak catering.",
     url: SITE_URL,
-    logo: `${SITE_URL}/images/Philly_On_The_Block_Logo.png`,
+    logo: `${SITE_URL}/images/philly-otb-logo-512.png`,
     image: [`${SITE_URL}/og.png`, `${SITE_URL}/images/menu/classic-philly.jpg`, `${SITE_URL}/images/menu/otb-fries.jpg`],
     telephone: STORE_PHONE_TEL,
     servesCuisine: ["Cheesesteaks", "Philly Cheesesteak", "Sandwiches", "American"],

@@ -48,8 +48,8 @@ export default function OurStoryPage() {
     <>
       <section className="story-open">
         <div className="story-open-art" aria-hidden="true">
-          <img className="story-open-crosswalk" src="/images/otb-crosswalk.png" alt="" width={1800} height={600} />
-          <img className="story-open-sign" src="/images/otb-street-sign.png" alt="" width={904} height={1157} />
+          <img className="story-open-crosswalk" src="/images/otb-crosswalk.webp" alt="" width={1800} height={600} />
+          <img className="story-open-sign" src="/images/otb-street-sign.webp" alt="" width={904} height={1157} />
         </div>
         <div className="story-open-copy">
           <p className="eyebrow">Our story</p>
@@ -81,8 +81,8 @@ export default function OurStoryPage() {
 
       <section className="section section-green story-close">
         <div className="story-close-mascots" aria-hidden="true">
-          <img src="/images/otb-mascot-left.png" alt="" loading="lazy" width={1056} height={1400} />
-          <img src="/images/otb-mascot-right.png" alt="" loading="lazy" width={1005} height={1329} />
+          <img src="/images/otb-mascot-left.webp" alt="" loading="lazy" width={1056} height={1400} />
+          <img src="/images/otb-mascot-right.webp" alt="" loading="lazy" width={1005} height={1329} />
         </div>
         <div>
           <RevealWords as="h2" className="display-xl" text="This is Philly on the Block." />

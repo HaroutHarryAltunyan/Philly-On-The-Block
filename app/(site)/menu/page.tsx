@@ -6,7 +6,7 @@ import { SITE_NAME } from "../../../lib/site";
 import { getStorefront } from "../../../lib/storefront-server";
 
 export const metadata: Metadata = {
-  title: { absolute: `Menu & Prices — Philly Cheesesteaks in Burbank | ${SITE_NAME}` },
+  title: { absolute: `Cheesesteak Menu & Prices, Burbank | ${SITE_NAME}` },
   description:
     "The Philly on the Block menu: Philly OTB, Classic Philly, Philly Melt, Fries, and loaded OTB Fries. Live prices, order pickup or delivery in Burbank, and pay in person.",
   alternates: { canonical: "/menu" },

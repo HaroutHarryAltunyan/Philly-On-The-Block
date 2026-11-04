@@ -47,6 +47,18 @@ export default function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
   const { pathname } = request.nextUrl;
 
+  // One canonical URL per page: plain http:// was served as a second copy of
+  // the whole site. Local development (localhost, *.localhost) stays on http.
+  const urlHost = request.nextUrl.hostname.toLowerCase();
+  const isLocal = [host, urlHost].some((h) => h === "" || h === "localhost" || h === "127.0.0.1" || h === "[::1]" || h.endsWith(".localhost"));
+  if (!isLocal && request.nextUrl.protocol === "http:") {
+    const target = new URL(request.url);
+    target.protocol = "https:";
+    target.port = "";
+    if (target.hostname === "www.phillyontheblock.com") target.hostname = "phillyontheblock.com";
+    return withSecurityHeaders(NextResponse.redirect(target, 301));
+  }
+
   // One canonical host: send www. to the bare domain with a permanent redirect.
   if (host === "www.phillyontheblock.com") {
     const target = new URL(request.url);

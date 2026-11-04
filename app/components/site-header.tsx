@@ -59,7 +59,7 @@ export default function SiteHeader({ pathname = "" }: { pathname?: string }) {
     <>
       <header className={`site-header${scrolled ? " is-scrolled" : ""}${menuOpen ? " is-menu-open" : ""}`}>
         <a className="brand" href="/" aria-label="Philly on the Block home">
-          <img className="brand-logo" src="/images/Philly_On_The_Block_Logo.png" alt="Philly on the Block" width="168" height="58" />
+          <img className="brand-logo" src="/images/otb-logo-header.webp" alt="Philly on the Block" width="168" height="58" />
         </a>
 
         <nav className="primary-nav" aria-label="Main">

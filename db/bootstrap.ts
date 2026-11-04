@@ -441,7 +441,49 @@ export function ensureBootstrap(db: Db): Promise<void> {
   return bootstrapPromise;
 }
 
+// Every cold Worker isolate used to replay ~40 DDL/PRAGMA statements against
+// D1 before serving its first request (5-7 s time-to-first-byte). The schema
+// only changes when this file changes, so record a fingerprint of the
+// definitions after a full run and skip straight through when it matches:
+// one indexed read instead of dozens of round trips. Any edit to the
+// tables, indexes, column upgrades or default settings changes the
+// fingerprint, so the full bootstrap runs once again on the next request.
+const SCHEMA_FINGERPRINT_KEY = "schemaFingerprint";
+
+function schemaFingerprint(): string {
+  const source = JSON.stringify([TABLES, UNIQUE_INDEXES, COLUMN_UPGRADES, LATE_INDEXES, FEE_SETTINGS]);
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < source.length; i++) {
+    const c = source.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x5bd1e995) >>> 0;
+  }
+  return `v1-${h1.toString(16)}-${h2.toString(16)}-${source.length}`;
+}
+
 async function bootstrap(db: Db): Promise<void> {
+  const fingerprint = schemaFingerprint();
+  try {
+    const rows = await db
+      .select({ value: schema.settings.value })
+      .from(schema.settings)
+      .where(sql`${schema.settings.key} = ${SCHEMA_FINGERPRINT_KEY}`)
+      .limit(1);
+    if (rows[0]?.value === fingerprint) return;
+  } catch {
+    // settings table missing (fresh database): fall through to the full run
+  }
+
+  await fullBootstrap(db);
+
+  await db.run(
+    sql`INSERT INTO settings (key, value) VALUES (${SCHEMA_FINGERPRINT_KEY}, ${fingerprint})
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+  );
+}
+
+async function fullBootstrap(db: Db): Promise<void> {
   for (const table of TABLES) {
     await db.run(sql.raw(table.ddl));
   }

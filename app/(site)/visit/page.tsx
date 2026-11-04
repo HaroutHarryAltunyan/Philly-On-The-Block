@@ -6,7 +6,7 @@ import { SITE_NAME, STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "../../../lib/si
 import { getStorefront } from "../../../lib/storefront-server";
 
 export const metadata: Metadata = {
-  title: { absolute: `Hours & Location — 2600 W Victory Blvd, Burbank | ${SITE_NAME}` },
+  title: { absolute: `Hours & Directions, Burbank CA | ${SITE_NAME}` },
   description:
     "Find Philly on the Block at 2600 W Victory Blvd, Burbank, CA 91505. Live hours, directions, and phone. Minutes from Glendale, North Hollywood, Toluca Lake, and Studio City.",
   alternates: { canonical: "/visit" },
@@ -21,7 +21,7 @@ export default async function VisitPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(restaurantSchema(hours))} />
       <section className="page-hero visit-hero">
-        <img className="visit-hero-truck" src="/images/otb-food-truck.png" alt="" aria-hidden="true" width={1390} height={1017} />
+        <img className="visit-hero-truck" src="/images/otb-food-truck.webp" alt="" aria-hidden="true" width={1390} height={1017} />
         <p className="eyebrow">Visit</p>
         <h1 className="display-xl">Pull up hungry.</h1>
         <address className="visit-address">

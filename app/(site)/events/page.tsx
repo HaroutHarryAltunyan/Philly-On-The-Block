@@ -7,7 +7,7 @@ export default function EventsPage() {
   return (
     <>
       <section className="page-hero page-hero-green events-hero">
-        <img className="events-hero-truck" src="/images/otb-food-truck.png" alt="" aria-hidden="true" width={1390} height={1017} />
+        <img className="events-hero-truck" src="/images/otb-food-truck.webp" alt="" aria-hidden="true" width={1390} height={1017} />
         <p className="eyebrow">Events &amp; catering</p>
         <RevealWords as="h1" className="display-xl" text="Bring the block to your event." />
         <Reveal delay={250}>
