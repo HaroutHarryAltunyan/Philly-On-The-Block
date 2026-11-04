@@ -174,7 +174,7 @@ function FoodScroll3D({ sandwich, fries, onFail }: { sandwich: StoreMenuItem | n
         Inside the Philly OTB and the OTB Fries
       </h2>
       <div className="food-stage">
-        <img className="food-poster" src="/images/menu/philly-otb.jpg" alt="" aria-hidden="true" width={750} height={1000} />
+        <img className="food-poster" src="/images/menu/philly-otb.jpg" alt="" aria-hidden="true" width={750} height={1000} loading="lazy" decoding="async" />
         <canvas ref={canvasRef} className="food-canvas" aria-hidden="true" />
         <div className="food-vignette" aria-hidden="true" />
         <div ref={labelsRef} className="food-labels" aria-hidden="true">

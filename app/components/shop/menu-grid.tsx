@@ -67,7 +67,10 @@ export default function MenuGrid({ headingLevel = 3 }: { headingLevel?: 2 | 3 })
                   <img
                     src={item.image}
                     alt={`${item.name} from Philly on the Block in Burbank`}
-                    loading={index < 3 ? "eager" : "lazy"}
+                    // Lazy: on the homepage the grid is several screens down, and eager
+                    // photos were preloaded ahead of the header logo (the LCP element).
+                    // On /menu, in-view lazy images still load right away.
+                    loading="lazy"
                     decoding="async"
                     width={750}
                     height={1000}

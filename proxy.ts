@@ -85,6 +85,13 @@ export default function proxy(request: NextRequest) {
   }
 
   const response = withSecurityHeaders(NextResponse.next());
+  // Page requests: tell the browser about the header logo (the mobile LCP
+  // element) in the response headers, so it starts downloading before the
+  // HTML is parsed instead of queueing behind ~20 script preloads.
+  // Cloudflare can also send this as a 103 Early Hint.
+  if (request.method === "GET" && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/") && !/\.[a-z0-9]+$/i.test(pathname)) {
+    response.headers.append("Link", "</images/otb-logo-header.webp>; rel=preload; as=image; type=image/webp; fetchpriority=high");
+  }
   // The admin/driver hosts serve the same Worker; keep them out of search
   // results so they don't compete with phillyontheblock.com.
   if (ADMIN_HOSTS.has(host) || DRIVER_HOSTS.has(host)) {
