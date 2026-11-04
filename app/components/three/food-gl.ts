@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { A, BOX_D, BOX_W, clamp01, L, moundHeight, NODE, pileHeight, rng, smooth } from "./food-models";
+import { MODEL_VERSION } from "./model-version";
 
 // Runtime for the scroll-driven food scene. Loads the two model files
 // (public/models/philly-otb.glb, public/models/otb-fries.glb), animates their
@@ -12,9 +13,11 @@ import { A, BOX_D, BOX_W, clamp01, L, moundHeight, NODE, pileHeight, rng, smooth
 // rotation, separation, cheese stretch and the hand-off from the sandwich to
 // the fries are all pure functions of it, so scrolling back reverses exactly.
 
+// Versioned by content hash (written by scripts/export-food-models.mjs), so a
+// deploy never pairs new code with a stale cached model file.
 export const FOOD_MODELS = {
-  sandwich: "/models/philly-otb.glb",
-  fries: "/models/otb-fries.glb",
+  sandwich: `/models/philly-otb.glb?v=${MODEL_VERSION.sandwich}`,
+  fries: `/models/otb-fries.glb?v=${MODEL_VERSION.fries}`,
 };
 
 export type Label = { id: string; x: number; y: number; opacity: number };
@@ -165,6 +168,21 @@ function find(root: THREE.Object3D, name: string): THREE.Object3D {
   return node;
 }
 
+/**
+ * Optional ingredient layer: if a model file doesn't have it (older export,
+ * a scan without separate layers), animate an empty stand-in instead of
+ * dropping the whole 3D section back to photos.
+ */
+function findLayer(root: THREE.Object3D, name: string): THREE.Object3D {
+  const node = root.getObjectByName(name);
+  if (node) return node;
+  console.warn(`3D model has no "${name}" layer; skipping it`);
+  const stand = new THREE.Group();
+  stand.name = name;
+  root.add(stand);
+  return stand;
+}
+
 /** Fewer drawn instances on constrained devices (same model file). */
 function thin(root: THREE.Object3D, keep: number) {
   root.traverse((obj) => {
@@ -241,9 +259,9 @@ export async function mountFoodScene(canvas: HTMLCanvasElement, options: { lowPo
   friesRig.add(fries);
   scene.add(sandwichRig, friesRig);
 
-  const sLayers = SANDWICH_LAYERS.map((l) => ({ ...l, obj: find(sandwich, l.node) }));
-  const fLayers = FRIES_LAYERS.map((l) => ({ ...l, obj: find(fries, l.node) }));
-  const topBread = find(sandwich, NODE.topBread);
+  const sLayers = SANDWICH_LAYERS.map((l) => ({ ...l, obj: findLayer(sandwich, l.node) }));
+  const fLayers = FRIES_LAYERS.map((l) => ({ ...l, obj: findLayer(fries, l.node) }));
+  const topBread = findLayer(sandwich, NODE.topBread);
   const topBase = { y: topBread.position.y, rx: topBread.rotation.x };
   const sCheese = sLayers.find((l) => l.node === NODE.cheese)!.obj;
   const fSteak = fLayers.find((l) => l.node === NODE.steak)!.obj;
