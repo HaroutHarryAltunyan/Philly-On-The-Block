@@ -4,7 +4,7 @@ Usage (renders one still):
   blender -b -P scripts/blender/otb_scene.py -- --still out.png [--samples 128] [--res 1280x720]
 
 Ingredients follow the menu (Philly OTB): fresh sesame hoagie roll, chopped
-premium steak, grilled onions, spicy pepper, sharp white American, OTB Ranch
+premium steak, grilled onions, red and green bell peppers, sharp white American, OTB Ranch
 (white, peppery), OTB Tang (orange). Look is matched to the owner's reference
 render: seared sliced steak, melted white cheese with drips, glossy crust,
 dark board, warm rim light, steam.
@@ -476,7 +476,8 @@ def steak_chunk(name, seed):
 
 steak_variants = [steak_chunk(f"steak_v{i}", 100 + i) for i in range(16)]
 onion_variants = [make_variant(f"onion_v{i}", rng.uniform(0.28, 0.42), 0.055, 0.018, 0.12, MAT["onion"], 200 + i) for i in range(6)]
-pepper_variants = [make_variant(f"pepper_v{i}", rng.uniform(0.3, 0.42), 0.07, 0.022, 0.08, MAT["pepper_red" if i % 3 else "pepper_green"], 300 + i) for i in range(6)]
+# Sliced bell peppers at real size (roll ≈ 30 cm → ~4 cm × 8 mm strips).
+pepper_variants = [make_variant(f"pepper_v{i}", rng.uniform(0.7, 0.9), 0.15, 0.03, 0.1, MAT["pepper_red" if i % 3 else "pepper_green"], 300 + i) for i in range(6)]
 
 
 def scatter(coll_name, variants, count, z_from, z_to, tilt, seed):
@@ -504,7 +505,7 @@ def scatter(coll_name, variants, count, z_from, z_to, tilt, seed):
 
 steak_coll = scatter("steak", steak_variants, 1700, 0.05, 1.0, 1.4, 1)
 onion_coll = scatter("onions", onion_variants, 90, 0.4, 1.0, 0.7, 2)
-pepper_coll = scatter("peppers", pepper_variants, 28, 0.75, 1.02, 0.5, 3)
+pepper_coll = scatter("peppers", pepper_variants, 26, 0.6, 1.02, 0.5, 3)  # sliced red + green bell peppers
 
 # Ray-cast helper against the filling, to drape cheese and sauces onto it.
 depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -599,24 +600,6 @@ ranch = drizzle("otb_ranch", MAT["ranch"], 0.38, 0.5, 1, 0.032, 0.008)
 for o in (tang, ranch):
     o.scale.z = 1.0
     sauce_coll.objects.link(o)
-
-# Spicy pepper flecks on the cheese.
-fleck_me = bpy.data.meshes.new("fleck")
-bm = bmesh.new()
-bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.008)
-bm.to_mesh(fleck_me)
-bm.free()
-fleck_me.materials.append(mat_pepper("#7a1a0d"))
-fl_coll = new_collection("pepper_flecks")
-for i in range(260):
-    x = r.uniform(-ROLL_L * 0.8, ROLL_L * 0.8)
-    y = r.uniform(-ROLL_W * 0.6, ROLL_W * 0.6)
-    h = bottom_height(x, y)
-    if h is None:
-        continue
-    o = bpy.data.objects.new(f"fleck_{i}", fleck_me)
-    o.location = (x, y, surface_z(x, y, h) + 0.004)
-    fl_coll.objects.link(o)
 
 top.hide_viewport = False
 bpy.context.view_layer.update()

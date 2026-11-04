@@ -37,7 +37,7 @@ const SANDWICH_LAYERS: Array<{ node: string; offset: number; label: string; labe
   { node: NODE.steak, offset: 0, label: "Premium meat", labelY: 0.3 },
   { node: NODE.onions, offset: 0.6, label: "Grilled onions", labelY: 0.4 },
   { node: NODE.cheese, offset: 1.15, label: "Sharp white American", labelY: 0.45 },
-  { node: NODE.pepper, offset: 1.55, label: "Spicy pepper", labelY: 0.5 },
+  { node: NODE.pepper, offset: 1.55, label: "Bell peppers", labelY: 0.5 },
   { node: NODE.sauces, offset: 1.95, label: "OTB Ranch + OTB Tang", labelY: 0.55 },
 ];
 const TOP_BREAD_RISE = 2.55;

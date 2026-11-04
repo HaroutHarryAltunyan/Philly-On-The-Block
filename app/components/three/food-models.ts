@@ -4,7 +4,7 @@ import * as THREE from "three";
 // the menu and matched to the product photos in /public/images/menu:
 //
 //   Philly OTB — sesame hoagie roll, premium chopped meat, grilled onions,
-//   sharp white American, spicy pepper (the red/black flecks in the photo),
+//   sharp white American, sliced red and green bell peppers,
 //   OTB Ranch (white, peppery) and OTB Tang (salmon-orange) in zigzags.
 //   OTB Fries — shoestring fries, steak, grilled onions, sharp white American,
 //   OTB Ranch, OTB Tang, in an open kraft takeout box.
@@ -21,7 +21,7 @@ export const NODE = {
   steak: "steak",
   onions: "onions",
   cheese: "cheese",
-  pepper: "spicy-pepper",
+  pepper: "bell-peppers",
   sauces: "sauces",
   fries: "otb-fries",
   friesSticks: "shoestring-fries",
@@ -176,7 +176,8 @@ function makeMaterials(texSize: number) {
     steak: named("chopped-steak", new THREE.MeshPhysicalMaterial({ roughness: 0.58, clearcoat: 0.45, clearcoatRoughness: 0.45 })),
     onion: named("grilled-onion", new THREE.MeshPhysicalMaterial({ roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.25, sheen: 0.5, sheenColor: new THREE.Color("#ffcf80") })),
     cheese: named("white-american", new THREE.MeshPhysicalMaterial({ map: cheeseMap, roughness: 0.28, clearcoat: 0.85, clearcoatRoughness: 0.25, sheen: 0.6, sheenColor: new THREE.Color("#fff3d0"), alphaTest: 0.5, side: THREE.DoubleSide })),
-    fleck: named("spicy-pepper", new THREE.MeshStandardMaterial({ roughness: 0.6 })),
+    // Glossy cooked bell pepper skin.
+    pepper: named("bell-pepper", new THREE.MeshPhysicalMaterial({ roughness: 0.18, clearcoat: 0.8, clearcoatRoughness: 0.1 })),
     tang: named("otb-tang", new THREE.MeshPhysicalMaterial({ color: "#ec9373", roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.3 })),
     ranch: named("otb-ranch", new THREE.MeshPhysicalMaterial({ map: ranchMap, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.3 })),
     fry: named("shoestring-fry", new THREE.MeshPhysicalMaterial({ roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4 })),
@@ -340,15 +341,20 @@ function onionStrips(count: number, m: Materials, r: () => number, at: (o: THREE
   });
 }
 
-function pepperFlecks(count: number, m: Materials, r: () => number, at: (o: THREE.Object3D) => boolean) {
-  const red = new THREE.Color("#8e2414");
-  const black = new THREE.Color("#1d1612");
-  return instanced("pepper-flecks", new THREE.BoxGeometry(1, 1, 1), m.fleck, count, (o, c) => {
+/** Sliced bell pepper strips: a curved, flattened slice of the pepper wall. */
+function bellPepperStrips(count: number, m: Materials, r: () => number, at: (o: THREE.Object3D) => boolean) {
+  const red = new THREE.Color("#b3170e");
+  const green = new THREE.Color("#3f6e1a");
+  // Real-world size: the roll is 6 units ≈ 30 cm, so a ~4 cm × 8 mm slice.
+  const geo = new THREE.TorusGeometry(0.45, 0.08, 8, 24, 1.7);
+  geo.scale(1, 1, 0.3); // flat like a sliced pepper wall
+  return instanced("bell-pepper-strips", geo, m.pepper, count, (o, c) => {
     if (!at(o)) return false;
-    o.rotation.set(r() * 3, r() * 3, r() * 3);
-    const k = 0.012 + r() * 0.018;
-    o.scale.set(k, k * 0.6, k);
-    c.copy(r() > 0.45 ? red : black);
+    // Lying in the chop, mostly flat, any direction.
+    o.rotation.set(Math.PI / 2 + (r() - 0.5) * 0.6, (r() - 0.5) * 0.5, r() * Math.PI * 2);
+    const k = 0.75 + r() * 0.4;
+    o.scale.set(k, k, k);
+    c.copy(r() > 0.4 ? red : green);
     return true;
   });
 }
@@ -426,12 +432,12 @@ function buildCheesesteak(m: Materials) {
     named(NODE.cheese, cheeseSheet(L * 0.88, 2 * A * 1.02, (x, z) => moundHeight(x, z) * 0.86, edge, m)),
     named(
       NODE.pepper,
-      pepperFlecks(380, m, r, (o) => {
+      bellPepperStrips(24, m, r, (o) => {
         const x = (r() - 0.5) * L * 0.82;
-        const z = (r() - 0.5) * 2 * A * 0.8;
+        const z = (r() - 0.5) * 2 * A * 0.75;
         const h = moundHeight(x, z);
-        if (h < 0.1) return false;
-        o.position.set(x, h + 0.045, z);
+        if (h < 0.12) return false;
+        o.position.set(x, h * (0.75 + r() * 0.3), z);
         return true;
       }),
     ),

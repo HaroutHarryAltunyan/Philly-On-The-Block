@@ -1,5 +1,13 @@
 @import "tailwindcss";
-@import "@fontsource/anton/latin-400.css";
+/* Anton (OFL), served from /public/fonts. Importing @fontsource's CSS left
+   relative font URLs the production build didn't emit (404 in production). */
+@font-face {
+  font-family: "Anton";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/anton-latin-400-normal.woff2") format("woff2"), url("/fonts/anton-latin-400-normal.woff") format("woff");
+}
 
 /* Brand palette (kept from the original site: the green street sign, baby
    blue, mustard, cream, and deep ink). Customer-page styles live in
