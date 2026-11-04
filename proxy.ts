@@ -13,7 +13,8 @@ const SECURITY_HEADERS: Record<string, string> = {
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data: blob: https://connect.facebook.net https://www.facebook.com *.tile.openstreetmap.org; " +
     "font-src 'self' data:; " +
-    "connect-src 'self' https://connect.facebook.net https://www.facebook.com https://graph.facebook.com; " +
+    // blob: lets the 3D model loader read textures embedded in our own .glb files.
+    "connect-src 'self' blob: https://connect.facebook.net https://www.facebook.com https://graph.facebook.com; " +
     "object-src 'none'; " +
     "frame-ancestors 'none'; " +
     "base-uri 'self'; " +

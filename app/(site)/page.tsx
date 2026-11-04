@@ -1,5 +1,5 @@
 import HeroScene from "../components/cinematic/hero-scene";
-import IngredientStory from "../components/cinematic/ingredient-story";
+import FoodScroll from "../components/three/food-scroll";
 import MagneticLink from "../components/cinematic/magnetic";
 import { Reveal, RevealWords } from "../components/cinematic/reveal";
 import { HoursList, OpenStatus } from "../components/shop/live-hours";
@@ -58,7 +58,11 @@ export default async function Home() {
         </div>
       </div>
 
-      <IngredientStory />
+      {/* 3D Philly OTB + OTB Fries story (photo story without WebGL / with reduced motion). */}
+      <FoodScroll
+        sandwich={menu.find((item) => item.name === "Philly OTB") ?? null}
+        fries={menu.find((item) => item.name === "OTB Fries") ?? null}
+      />
 
       <section id="menu" className="section section-blue" aria-labelledby="menu-title">
         <div className="section-head">

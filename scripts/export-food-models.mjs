@@ -1,0 +1,74 @@
+// Exports the Philly OTB and OTB Fries 3D models to public/models/*.glb.
+//
+//   npm run models:export
+//
+// The models are authored in app/components/three/food-models.ts (only the
+// ingredients on the menu, matched to the product photos). This script
+// bundles that module, builds the scenes in headless Chrome (the textures are
+// drawn on <canvas>), exports binary glTF with three's GLTFExporter, then
+// compresses textures to WebP with glTF-Transform.
+//
+// To use a different model (e.g. a commissioned or AI-generated scan), drop a
+// .glb with the same node names (see NODE in food-models.ts) into
+// public/models/ instead of running this.
+
+import { build } from "esbuild";
+import { chromium } from "playwright-core";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const outDir = join(root, "public", "models");
+mkdirSync(outDir, { recursive: true });
+
+const entry = `
+  import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
+  import { buildFoodModels } from "./app/components/three/food-models";
+  window.exportFood = async () => {
+    const { sandwich, fries } = buildFoodModels(1024);
+    const exporter = new GLTFExporter();
+    const toB64 = async (obj) => {
+      const buf = await exporter.parseAsync(obj, { binary: true });
+      let s = "";
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(s);
+    };
+    return { "philly-otb": await toB64(sandwich), "otb-fries": await toB64(fries) };
+  };
+`;
+
+const bundle = await build({
+  stdin: { contents: entry, resolveDir: root, loader: "ts" },
+  bundle: true,
+  format: "iife",
+  write: false,
+  platform: "browser",
+  logLevel: "warning",
+});
+
+const browser = await chromium.launch({ channel: "chrome" });
+const page = await browser.newPage();
+page.on("pageerror", (e) => console.error("page error:", e.message));
+await page.setContent("<!doctype html><html><body></body></html>");
+await page.addScriptTag({ content: bundle.outputFiles[0].text });
+const files = await page.evaluate(() => window.exportFood());
+await browser.close();
+
+for (const [name, b64] of Object.entries(files)) {
+  const raw = join(outDir, `${name}.raw.glb`);
+  const mid = join(outDir, `${name}.webp.glb`);
+  const out = join(outDir, `${name}.glb`);
+  writeFileSync(raw, Buffer.from(b64, "base64"));
+  const gt = (...args) => execFileSync("npx", ["-y", "@gltf-transform/cli@4.5.1", ...args], { stdio: "inherit" });
+  // Lossy WebP textures (quality 82) — the canvas PNGs are large and noisy.
+  gt("webp", raw, mid, "--quality", "82");
+  // Geometry compression via KHR_mesh_quantization: decoded natively by
+  // three's GLTFLoader, so no Draco wasm/worker (which the site's CSP blocks).
+  gt("quantize", mid, out);
+  unlinkSync(raw);
+  unlinkSync(mid);
+  console.log(`${name}.glb  ${(statSync(out).size / 1024).toFixed(0)} KB`);
+}
